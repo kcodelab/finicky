@@ -42,6 +42,7 @@ void SetFileContentWithLength(const char* path, const char* content, size_t leng
     WKWebView* webView;
 
     FinickyNativeTabContainerView* tabContainer;
+    FinickyNativeOverviewView* overviewView;
     FinickyNativeConfigFormView* configView;
 
     BOOL cloudSyncEnabled;
@@ -90,7 +91,12 @@ void SetFileContentWithLength(const char* path, const char* content, size_t leng
     tabContainer = [[FinickyNativeTabContainerView alloc] initWithFrame:rootView.bounds];
     tabContainer.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
 
+    overviewView = [[FinickyNativeOverviewView alloc] initWithFrame:tabContainer.bounds];
     __unsafe_unretained typeof(self) weakSelf = self;
+    overviewView.onICloudToggleRequested = ^{
+        [weakSelf onCloudSyncAction:nil];
+    };
+
     configView = [[FinickyNativeConfigFormView alloc] initWithFrame:tabContainer.bounds];
     configView.onICloudToggleRequested = ^{
         [weakSelf onCloudSyncAction:nil];
@@ -105,6 +111,7 @@ void SetFileContentWithLength(const char* path, const char* content, size_t leng
         [weakSelf onSave:nil];
     };
 
+    [tabContainer addTabWithIdentifier:@"overviewNative" label:@"Overview" view:overviewView];
     [tabContainer addTabWithIdentifier:@"configNative" label:@"Config" view:configView];
     [tabContainer addTabWithIdentifier:@"webLegacy" label:@"Web (Legacy)" view:[self buildWebViewContainerWithFrame:tabContainer.bounds]];
 
@@ -225,6 +232,16 @@ void SetFileContentWithLength(const char* path, const char* content, size_t leng
         return;
     }
 
+    if ([type isEqualToString:@"config"] && [payload isKindOfClass:[NSDictionary class]]) {
+        [overviewView updateConfigWithMessage:(NSDictionary*)payload];
+        return;
+    }
+
+    if ([type isEqualToString:@"updateInfo"] && [payload isKindOfClass:[NSDictionary class]]) {
+        [overviewView updateUpdateInfo:(NSDictionary*)payload];
+        return;
+    }
+
     if ([type isEqualToString:@"configBuilderData"] && [payload isKindOfClass:[NSDictionary class]]) {
         NSDictionary* dict = (NSDictionary*)payload;
         [configView setBrowserOptions:dict[@"browsers"]];
@@ -297,6 +314,7 @@ void SetFileContentWithLength(const char* path, const char* content, size_t leng
     NSString* configPath = [status[@"configPath"] isKindOfClass:[NSString class]] ? status[@"configPath"] : @"";
     NSString* cloudPath = [status[@"cloudPath"] isKindOfClass:[NSString class]] ? status[@"cloudPath"] : @"";
 
+    [overviewView updateICloudEnabled:cloudSyncEnabled configPath:configPath cloudPath:cloudPath error:error ?: @""];
     [configView updateICloudWithEnabled:cloudSyncEnabled configPath:configPath cloudPath:cloudPath error:error ?: @""];
 }
 
