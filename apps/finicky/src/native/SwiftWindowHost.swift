@@ -98,6 +98,7 @@ private final class SwiftWindowController: NSObject, WKScriptMessageHandler, WKU
 
         rootView.addSubview(tabContainer)
         window.contentView = rootView
+        window.makeFirstResponder(nil)
 
         NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification,
@@ -451,8 +452,8 @@ private final class SwiftWindowController: NSObject, WKScriptMessageHandler, WKU
     }
 }
 
-@_cdecl("FinickyWindowShow")
-public func FinickyWindowShow() {
+@_cdecl("ShowWindow")
+public func ShowWindow() {
     DispatchQueue.main.async {
         if sharedWindowController == nil {
             sharedWindowController = SwiftWindowController()
@@ -461,15 +462,15 @@ public func FinickyWindowShow() {
     }
 }
 
-@_cdecl("FinickyWindowClose")
-public func FinickyWindowClose() {
+@_cdecl("CloseWindow")
+public func CloseWindow() {
     DispatchQueue.main.async {
         sharedWindowController?.closeWindow()
     }
 }
 
-@_cdecl("FinickyWindowSendMessage")
-public func FinickyWindowSendMessage(_ message: UnsafePointer<CChar>?) {
+@_cdecl("SendMessageToWebView")
+public func SendMessageToWebView(_ message: UnsafePointer<CChar>?) {
     guard let message else { return }
     let text = String(cString: message)
     DispatchQueue.main.async {
@@ -477,14 +478,14 @@ public func FinickyWindowSendMessage(_ message: UnsafePointer<CChar>?) {
     }
 }
 
-@_cdecl("FinickyWindowSetHTMLContent")
-public func FinickyWindowSetHTMLContent(_ content: UnsafePointer<CChar>?) {
+@_cdecl("SetHTMLContent")
+public func SetHTMLContent(_ content: UnsafePointer<CChar>?) {
     guard let content else { return }
     hostedHTMLContent = String(cString: content)
 }
 
-@_cdecl("FinickyWindowSetFileContent")
-public func FinickyWindowSetFileContent(_ path: UnsafePointer<CChar>?, _ content: UnsafePointer<CChar>?) {
+@_cdecl("SetFileContent")
+public func SetFileContent(_ path: UnsafePointer<CChar>?, _ content: UnsafePointer<CChar>?) {
     guard let path, let content else { return }
     let key = String(cString: path)
     if key.hasSuffix(".png") {
@@ -495,8 +496,8 @@ public func FinickyWindowSetFileContent(_ path: UnsafePointer<CChar>?, _ content
     }
 }
 
-@_cdecl("FinickyWindowSetFileContentWithLength")
-public func FinickyWindowSetFileContentWithLength(_ path: UnsafePointer<CChar>?, _ content: UnsafePointer<CChar>?, _ length: Int) {
+@_cdecl("SetFileContentWithLength")
+public func SetFileContentWithLength(_ path: UnsafePointer<CChar>?, _ content: UnsafePointer<CChar>?, _ length: Int) {
     guard let path, let content else { return }
     hostedFiles[String(cString: path)] = .data(Data(bytes: content, count: max(0, length)))
 }

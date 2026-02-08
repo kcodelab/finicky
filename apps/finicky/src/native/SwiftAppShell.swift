@@ -182,3 +182,8 @@ public func RunSwiftApp(_ forceOpenWindow: Bool, _ showStatusItem: Bool, _ keepR
         DispatchQueue.main.sync(execute: launch)
     }
 }
+
+@_cdecl("RunApp")
+public func RunApp(_ forceOpenWindow: Bool, _ showStatusItem: Bool, _ keepRunning: Bool) {
+    RunSwiftApp(forceOpenWindow, showStatusItem, keepRunning)
+}

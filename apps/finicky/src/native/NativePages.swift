@@ -13,7 +13,7 @@ public final class FinickySwiftTabContainerView: NSView {
     private let contentGlass = NSVisualEffectView()
     private let sidebarContent = NSView()
     private let appTitleLabel = NSTextField(labelWithString: "Finicky")
-    private let footerLabel = NSTextField(labelWithString: "Swift UI")
+    private let footerLabel = NSTextField(labelWithString: "Native Swift")
     private let searchField = NSSearchField()
     private let buttonList = NSView()
     private let contentHost = NSView()
@@ -48,9 +48,9 @@ public final class FinickySwiftTabContainerView: NSView {
             $0.state = .active
             $0.blendingMode = .withinWindow
             $0.wantsLayer = true
-            $0.layer?.cornerRadius = 16
+            $0.layer?.cornerRadius = 18
             $0.layer?.borderWidth = 1
-            $0.layer?.borderColor = NSColor(white: 1.0, alpha: 0.2).cgColor
+            $0.layer?.borderColor = NSColor(white: 1.0, alpha: 0.18).cgColor
             rootBackground.addSubview($0)
         }
 
@@ -61,9 +61,11 @@ public final class FinickySwiftTabContainerView: NSView {
         sidebarGlass.addSubview(sidebarContent)
 
         appTitleLabel.font = NSFont.systemFont(ofSize: 24, weight: .bold)
+        appTitleLabel.textColor = .labelColor
         sidebarContent.addSubview(appTitleLabel)
 
         searchField.placeholderString = "Search"
+        searchField.focusRingType = .none
         sidebarContent.addSubview(searchField)
 
         buttonList.autoresizingMask = [.width]
@@ -80,8 +82,8 @@ public final class FinickySwiftTabContainerView: NSView {
     public override func layout() {
         super.layout()
 
-        let inset: CGFloat = 12
-        let sidebarWidth: CGFloat = 280
+        let inset: CGFloat = 14
+        let sidebarWidth: CGFloat = 290
 
         rootBackground.frame = bounds
         sidebarGlass.frame = NSRect(x: inset, y: inset, width: sidebarWidth, height: bounds.height - inset * 2)
@@ -93,11 +95,11 @@ public final class FinickySwiftTabContainerView: NSView {
         )
 
         sidebarContent.frame = sidebarGlass.bounds
-        appTitleLabel.frame = NSRect(x: 16, y: sidebarGlass.bounds.height - 40, width: sidebarGlass.bounds.width - 32, height: 30)
-        searchField.frame = NSRect(x: 16, y: sidebarGlass.bounds.height - 80, width: sidebarGlass.bounds.width - 32, height: 34)
-        buttonList.frame = NSRect(x: 12, y: 60, width: sidebarGlass.bounds.width - 24, height: sidebarGlass.bounds.height - 154)
-        footerLabel.frame = NSRect(x: 16, y: 14, width: sidebarGlass.bounds.width - 32, height: 20)
-        contentHost.frame = contentGlass.bounds.insetBy(dx: 10, dy: 10)
+        appTitleLabel.frame = NSRect(x: 18, y: sidebarGlass.bounds.height - 76, width: sidebarGlass.bounds.width - 36, height: 36)
+        searchField.frame = NSRect(x: 18, y: sidebarGlass.bounds.height - 122, width: sidebarGlass.bounds.width - 36, height: 34)
+        buttonList.frame = NSRect(x: 14, y: 68, width: sidebarGlass.bounds.width - 28, height: sidebarGlass.bounds.height - 206)
+        footerLabel.frame = NSRect(x: 18, y: 16, width: sidebarGlass.bounds.width - 36, height: 20)
+        contentHost.frame = contentGlass.bounds.insetBy(dx: 14, dy: 14)
 
         updateSidebarButtonFrames()
     }
@@ -148,19 +150,22 @@ public final class FinickySwiftTabContainerView: NSView {
     }
 
     private func updateSidebarButtonFrames() {
-        var y = buttonList.bounds.height - 44
+        var y = buttonList.bounds.height - 42
         let width = buttonList.bounds.width
         for button in tabButtons {
-            button.frame = NSRect(x: 0, y: y, width: width, height: 36)
-            y -= 44
+            button.frame = NSRect(x: 0, y: y, width: width, height: 38)
+            y -= 46
         }
     }
 
     private func updateSidebarButtonStyles() {
         for button in tabButtons {
             let selected = button.tabIdentifier == selectedIdentifier
-            button.layer?.backgroundColor = selected ? NSColor(white: 1.0, alpha: 0.45).cgColor : NSColor.clear.cgColor
+            button.layer?.backgroundColor = selected ? NSColor(white: 1.0, alpha: 0.52).cgColor : NSColor.clear.cgColor
+            button.layer?.borderWidth = selected ? 1 : 0
+            button.layer?.borderColor = NSColor(white: 1.0, alpha: 0.35).cgColor
             button.font = NSFont.systemFont(ofSize: 14, weight: selected ? .semibold : .medium)
+            button.contentTintColor = selected ? .labelColor : .secondaryLabelColor
         }
     }
 }
@@ -202,30 +207,46 @@ public final class FinickySwiftOverviewView: NSView {
         let scroll = NSScrollView(frame: bounds)
         scroll.autoresizingMask = [.width, .height]
         scroll.hasVerticalScroller = true
+        scroll.drawsBackground = false
 
-        let content = NSView(frame: NSRect(x: 0, y: 0, width: bounds.width, height: 880))
+        let content = NSView(frame: NSRect(x: 0, y: 0, width: bounds.width, height: 980))
         content.autoresizingMask = [.width]
 
-        let stack = NSStackView(frame: NSRect(x: 24, y: 24, width: max(480, bounds.width - 48), height: 832))
+        let stack = NSStackView(frame: NSRect(x: 16, y: 16, width: max(520, bounds.width - 32), height: 944))
         stack.autoresizingMask = [.width]
         stack.orientation = .vertical
         stack.alignment = .leading
-        stack.spacing = 14
+        stack.spacing = 16
 
         let title = NSTextField(labelWithString: "Overview")
-        title.font = NSFont.systemFont(ofSize: 28, weight: .bold)
+        title.font = NSFont.systemFont(ofSize: 36, weight: .bold)
 
         let subtitle = NSTextField(labelWithString: "Current config state and sync status")
         subtitle.textColor = .secondaryLabelColor
+
+        let mainCard = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: stack.frame.width, height: 210))
+        mainCard.material = .menu
+        mainCard.state = .active
+        mainCard.blendingMode = .withinWindow
+        mainCard.wantsLayer = true
+        mainCard.layer?.cornerRadius = 14
+        mainCard.layer?.borderWidth = 1
+        mainCard.layer?.borderColor = NSColor(white: 1.0, alpha: 0.20).cgColor
+
+        let mainCardStack = NSStackView(frame: NSRect(x: 16, y: 16, width: mainCard.bounds.width - 32, height: 178))
+        mainCardStack.autoresizingMask = [.width, .height]
+        mainCardStack.orientation = .vertical
+        mainCardStack.alignment = .leading
+        mainCardStack.spacing = 10
 
         configPathLabel.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
         configPathLabel.textColor = .tertiaryLabelColor
         configPathLabel.lineBreakMode = .byTruncatingMiddle
 
-        defaultBrowserLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
+        defaultBrowserLabel.font = NSFont.systemFont(ofSize: 14, weight: .medium)
         handlersLabel.textColor = .secondaryLabelColor
 
-        cloudStatusLabel.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
+        cloudStatusLabel.font = NSFont.systemFont(ofSize: 14, weight: .semibold)
         cloudDetailLabel.textColor = .secondaryLabelColor
         cloudDetailLabel.lineBreakMode = .byWordWrapping
         cloudDetailLabel.maximumNumberOfLines = 3
@@ -234,19 +255,39 @@ public final class FinickySwiftOverviewView: NSView {
         cloudToggleButton.action = #selector(onCloudToggle(_:))
         cloudToggleButton.bezelStyle = .rounded
 
-        updateLabel.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
+        updateLabel.font = NSFont.systemFont(ofSize: 14, weight: .semibold)
         updateDetailLabel.textColor = .secondaryLabelColor
+
+        mainCardStack.addArrangedSubview(configPathLabel)
+        mainCardStack.addArrangedSubview(defaultBrowserLabel)
+        mainCardStack.addArrangedSubview(handlersLabel)
+        mainCardStack.addArrangedSubview(cloudStatusLabel)
+        mainCardStack.addArrangedSubview(cloudDetailLabel)
+        mainCardStack.addArrangedSubview(cloudToggleButton)
+        mainCard.addSubview(mainCardStack)
+
+        let updateCard = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: stack.frame.width, height: 110))
+        updateCard.material = .headerView
+        updateCard.state = .active
+        updateCard.blendingMode = .withinWindow
+        updateCard.wantsLayer = true
+        updateCard.layer?.cornerRadius = 14
+        updateCard.layer?.borderWidth = 1
+        updateCard.layer?.borderColor = NSColor(white: 1.0, alpha: 0.16).cgColor
+
+        let updateStack = NSStackView(frame: NSRect(x: 16, y: 16, width: updateCard.bounds.width - 32, height: 78))
+        updateStack.autoresizingMask = [.width, .height]
+        updateStack.orientation = .vertical
+        updateStack.alignment = .leading
+        updateStack.spacing = 8
+        updateStack.addArrangedSubview(updateLabel)
+        updateStack.addArrangedSubview(updateDetailLabel)
+        updateCard.addSubview(updateStack)
 
         stack.addArrangedSubview(title)
         stack.addArrangedSubview(subtitle)
-        stack.addArrangedSubview(configPathLabel)
-        stack.addArrangedSubview(defaultBrowserLabel)
-        stack.addArrangedSubview(handlersLabel)
-        stack.addArrangedSubview(cloudStatusLabel)
-        stack.addArrangedSubview(cloudDetailLabel)
-        stack.addArrangedSubview(cloudToggleButton)
-        stack.addArrangedSubview(updateLabel)
-        stack.addArrangedSubview(updateDetailLabel)
+        stack.addArrangedSubview(mainCard)
+        stack.addArrangedSubview(updateCard)
 
         content.addSubview(stack)
         scroll.documentView = content
@@ -360,7 +401,13 @@ final class SwiftRouteEditorRow: NSView, NSTextViewDelegate {
     }
 
     private func buildUI() {
-        let container = NSStackView(frame: bounds)
+        wantsLayer = true
+        layer?.cornerRadius = 12
+        layer?.borderWidth = 1
+        layer?.borderColor = NSColor(white: 1.0, alpha: 0.18).cgColor
+        layer?.backgroundColor = NSColor(white: 1.0, alpha: 0.20).cgColor
+
+        let container = NSStackView(frame: bounds.insetBy(dx: 12, dy: 10))
         container.autoresizingMask = [.width, .height]
         container.orientation = .vertical
         container.alignment = .leading
@@ -379,7 +426,7 @@ final class SwiftRouteEditorRow: NSView, NSTextViewDelegate {
         header.addArrangedSubview(removeButton)
 
         let patternsLabel = NSTextField(labelWithString: "Patterns")
-        let patternsScroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 760, height: 66))
+        let patternsScroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 760, height: 84))
         patternsScroll.borderType = .bezelBorder
         patternsScroll.hasVerticalScroller = true
         patternsView.delegate = self
@@ -393,11 +440,11 @@ final class SwiftRouteEditorRow: NSView, NSTextViewDelegate {
 
         browserPopup.target = self
         browserPopup.action = #selector(onBrowserSelected(_:))
-        browserPopup.font = NSFont.systemFont(ofSize: 12)
+        browserPopup.font = NSFont.systemFont(ofSize: 13)
 
         profilePopup.target = self
         profilePopup.action = #selector(onProfileSelected(_:))
-        profilePopup.font = NSFont.systemFont(ofSize: 12)
+        profilePopup.font = NSFont.systemFont(ofSize: 13)
 
         browserRow.addArrangedSubview(NSTextField(labelWithString: "Browser:"))
         browserRow.addArrangedSubview(browserPopup)
@@ -535,21 +582,37 @@ public final class FinickySwiftConfigFormView: NSView {
         let scroll = NSScrollView(frame: bounds)
         scroll.autoresizingMask = [.width, .height]
         scroll.hasVerticalScroller = true
+        scroll.drawsBackground = false
 
-        let content = NSView(frame: NSRect(x: 0, y: 0, width: bounds.width, height: 1700))
+        let content = NSView(frame: NSRect(x: 0, y: 0, width: bounds.width, height: 1960))
         content.autoresizingMask = [.width]
 
-        let stack = NSStackView(frame: NSRect(x: 22, y: 22, width: max(520, bounds.width - 44), height: 1656))
+        let stack = NSStackView(frame: NSRect(x: 16, y: 16, width: max(600, bounds.width - 32), height: 1928))
         stack.autoresizingMask = [.width]
         stack.orientation = .vertical
         stack.alignment = .leading
-        stack.spacing = 14
+        stack.spacing = 16
 
         let title = NSTextField(labelWithString: "Config")
-        title.font = NSFont.systemFont(ofSize: 28, weight: .bold)
+        title.font = NSFont.systemFont(ofSize: 36, weight: .bold)
 
         let subtitle = NSTextField(labelWithString: "Routes, profiles, preview and activation")
         subtitle.textColor = .secondaryLabelColor
+
+        let builderCard = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: stack.frame.width, height: 170))
+        builderCard.material = .menu
+        builderCard.state = .active
+        builderCard.blendingMode = .withinWindow
+        builderCard.wantsLayer = true
+        builderCard.layer?.cornerRadius = 14
+        builderCard.layer?.borderWidth = 1
+        builderCard.layer?.borderColor = NSColor(white: 1.0, alpha: 0.20).cgColor
+
+        let builderCardStack = NSStackView(frame: NSRect(x: 16, y: 16, width: builderCard.bounds.width - 32, height: 138))
+        builderCardStack.autoresizingMask = [.width, .height]
+        builderCardStack.orientation = .vertical
+        builderCardStack.alignment = .leading
+        builderCardStack.spacing = 10
 
         let defaultRow = NSStackView()
         defaultRow.orientation = .horizontal
@@ -576,6 +639,12 @@ public final class FinickySwiftConfigFormView: NSView {
         cloudResultLabel.lineBreakMode = .byWordWrapping
         cloudResultLabel.maximumNumberOfLines = 3
 
+        builderCardStack.addArrangedSubview(defaultRow)
+        builderCardStack.addArrangedSubview(configPathLabel)
+        builderCardStack.addArrangedSubview(cloudRow)
+        builderCardStack.addArrangedSubview(cloudResultLabel)
+        builderCard.addSubview(builderCardStack)
+
         let routeHeader = NSStackView()
         routeHeader.orientation = .horizontal
         routeHeader.spacing = 10
@@ -590,14 +659,34 @@ public final class FinickySwiftConfigFormView: NSView {
         routesStack.alignment = .leading
         routesStack.spacing = 12
 
+        let routesCard = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: stack.frame.width, height: 980))
+        routesCard.material = .menu
+        routesCard.state = .active
+        routesCard.blendingMode = .withinWindow
+        routesCard.wantsLayer = true
+        routesCard.layer?.cornerRadius = 14
+        routesCard.layer?.borderWidth = 1
+        routesCard.layer?.borderColor = NSColor(white: 1.0, alpha: 0.16).cgColor
+
+        let routesCardStack = NSStackView(frame: NSRect(x: 16, y: 16, width: routesCard.bounds.width - 32, height: routesCard.bounds.height - 32))
+        routesCardStack.autoresizingMask = [.width, .height]
+        routesCardStack.orientation = .vertical
+        routesCardStack.alignment = .leading
+        routesCardStack.spacing = 12
+        routesCardStack.addArrangedSubview(routeHeader)
+        routesCardStack.addArrangedSubview(routesStack)
+        routesCard.addSubview(routesCardStack)
+
         let actionRow = NSStackView()
         actionRow.orientation = .horizontal
-        actionRow.spacing = 10
+        actionRow.spacing = 12
         formatButton.target = self
         formatButton.action = #selector(onFormat(_:))
+        formatButton.bezelStyle = .rounded
         saveButton.target = self
         saveButton.action = #selector(onSave(_:))
         saveButton.keyEquivalent = "\r"
+        saveButton.bezelStyle = .recessed
         actionRow.addArrangedSubview(formatButton)
         actionRow.addArrangedSubview(saveButton)
 
@@ -607,7 +696,7 @@ public final class FinickySwiftConfigFormView: NSView {
         let previewLabel = NSTextField(labelWithString: "Preview")
         previewLabel.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
 
-        let previewScroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 860, height: 380))
+        let previewScroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 860, height: 420))
         previewScroll.borderType = .bezelBorder
         previewScroll.hasVerticalScroller = true
         previewScroll.hasHorizontalScroller = true
@@ -616,19 +705,32 @@ public final class FinickySwiftConfigFormView: NSView {
         previewTextView.isAutomaticQuoteSubstitutionEnabled = false
         previewScroll.documentView = previewTextView
 
+        let previewCard = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: stack.frame.width, height: 492))
+        previewCard.material = .headerView
+        previewCard.state = .active
+        previewCard.blendingMode = .withinWindow
+        previewCard.wantsLayer = true
+        previewCard.layer?.cornerRadius = 14
+        previewCard.layer?.borderWidth = 1
+        previewCard.layer?.borderColor = NSColor(white: 1.0, alpha: 0.14).cgColor
+
+        let previewCardStack = NSStackView(frame: NSRect(x: 16, y: 16, width: previewCard.bounds.width - 32, height: previewCard.bounds.height - 32))
+        previewCardStack.autoresizingMask = [.width, .height]
+        previewCardStack.orientation = .vertical
+        previewCardStack.alignment = .leading
+        previewCardStack.spacing = 8
+        previewCardStack.addArrangedSubview(previewLabel)
+        previewCardStack.addArrangedSubview(previewScroll)
+        previewCard.addSubview(previewCardStack)
+
         stack.addArrangedSubview(title)
         stack.addArrangedSubview(subtitle)
-        stack.addArrangedSubview(defaultRow)
-        stack.addArrangedSubview(configPathLabel)
-        stack.addArrangedSubview(cloudRow)
-        stack.addArrangedSubview(cloudResultLabel)
-        stack.addArrangedSubview(routeHeader)
-        stack.addArrangedSubview(routesStack)
+        stack.addArrangedSubview(builderCard)
+        stack.addArrangedSubview(routesCard)
         stack.addArrangedSubview(actionRow)
         stack.addArrangedSubview(builderErrorLabel)
         stack.addArrangedSubview(builderStatusLabel)
-        stack.addArrangedSubview(previewLabel)
-        stack.addArrangedSubview(previewScroll)
+        stack.addArrangedSubview(previewCard)
 
         content.addSubview(stack)
         scroll.documentView = content
@@ -652,7 +754,7 @@ public final class FinickySwiftConfigFormView: NSView {
 
         for draft in routeDrafts {
             let row = SwiftRouteEditorRow(
-                frame: NSRect(x: 0, y: 0, width: max(760, bounds.width - 70), height: 180),
+                frame: NSRect(x: 0, y: 0, width: max(760, bounds.width - 70), height: 220),
                 draft: draft,
                 browserOptions: browserOptions,
                 profileGroups: profileGroups
