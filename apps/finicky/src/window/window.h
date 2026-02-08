@@ -1,14 +1,7 @@
 #ifndef WINDOW_H
 #define WINDOW_H
 
-#import <Cocoa/Cocoa.h>
-#import <WebKit/WebKit.h>
-
-@interface WindowController : NSObject <WKScriptMessageHandler, WKURLSchemeHandler, WKNavigationDelegate, NSTextViewDelegate>
-- (void)showWindow;
-- (void)closeWindow;
-- (void)sendMessageToWebView:(NSString *)message;
-@end
+#include <stddef.h>
 
 void ShowWindow(void);
 void CloseWindow(void);

@@ -8,5 +8,8 @@ void HandleURL(char *url, char *name, char *bundleId, char *path, bool openInBac
 void QueueWindowDisplay(int32_t launchedByUser);
 void ShowConfigWindow(void);
 char *GetCurrentConfigPath(void);
+void HandleWebViewMessage(const char* message);
+void WindowDidClose(void);
+void WindowIsReady(void);
 
 #endif

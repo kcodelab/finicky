@@ -2,6 +2,170 @@ import AppKit
 import Foundation
 
 @objcMembers
+final class SwiftSidebarTabButton: NSButton {
+    var tabIdentifier = ""
+}
+
+@objc(FinickySwiftTabContainerView)
+public final class FinickySwiftTabContainerView: NSView {
+    private let rootBackground = NSVisualEffectView()
+    private let sidebarGlass = NSVisualEffectView()
+    private let contentGlass = NSVisualEffectView()
+    private let sidebarContent = NSView()
+    private let appTitleLabel = NSTextField(labelWithString: "Finicky")
+    private let footerLabel = NSTextField(labelWithString: "Swift UI")
+    private let searchField = NSSearchField()
+    private let buttonList = NSView()
+    private let contentHost = NSView()
+
+    private var tabViews: [String: NSView] = [:]
+    private var tabButtons: [SwiftSidebarTabButton] = []
+    private var selectedIdentifier = ""
+
+    public override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        setupUI()
+    }
+
+    public required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        setupUI()
+    }
+
+    private func setupUI() {
+        wantsLayer = true
+        layer?.cornerRadius = 20
+        layer?.masksToBounds = true
+
+        rootBackground.material = .underWindowBackground
+        rootBackground.state = .active
+        rootBackground.blendingMode = .behindWindow
+        rootBackground.autoresizingMask = [.width, .height]
+        rootBackground.frame = bounds
+        addSubview(rootBackground)
+
+        [sidebarGlass, contentGlass].forEach {
+            $0.state = .active
+            $0.blendingMode = .withinWindow
+            $0.wantsLayer = true
+            $0.layer?.cornerRadius = 16
+            $0.layer?.borderWidth = 1
+            $0.layer?.borderColor = NSColor(white: 1.0, alpha: 0.2).cgColor
+            rootBackground.addSubview($0)
+        }
+
+        sidebarGlass.material = .sidebar
+        contentGlass.material = .contentBackground
+
+        sidebarContent.autoresizingMask = [.width, .height]
+        sidebarGlass.addSubview(sidebarContent)
+
+        appTitleLabel.font = NSFont.systemFont(ofSize: 24, weight: .bold)
+        sidebarContent.addSubview(appTitleLabel)
+
+        searchField.placeholderString = "Search"
+        sidebarContent.addSubview(searchField)
+
+        buttonList.autoresizingMask = [.width]
+        sidebarContent.addSubview(buttonList)
+
+        footerLabel.font = NSFont.systemFont(ofSize: 11, weight: .medium)
+        footerLabel.textColor = .tertiaryLabelColor
+        sidebarContent.addSubview(footerLabel)
+
+        contentHost.autoresizingMask = [.width, .height]
+        contentGlass.addSubview(contentHost)
+    }
+
+    public override func layout() {
+        super.layout()
+
+        let inset: CGFloat = 12
+        let sidebarWidth: CGFloat = 280
+
+        rootBackground.frame = bounds
+        sidebarGlass.frame = NSRect(x: inset, y: inset, width: sidebarWidth, height: bounds.height - inset * 2)
+        contentGlass.frame = NSRect(
+            x: sidebarGlass.frame.maxX + inset,
+            y: inset,
+            width: bounds.width - sidebarWidth - inset * 3,
+            height: bounds.height - inset * 2
+        )
+
+        sidebarContent.frame = sidebarGlass.bounds
+        appTitleLabel.frame = NSRect(x: 16, y: sidebarGlass.bounds.height - 40, width: sidebarGlass.bounds.width - 32, height: 30)
+        searchField.frame = NSRect(x: 16, y: sidebarGlass.bounds.height - 80, width: sidebarGlass.bounds.width - 32, height: 34)
+        buttonList.frame = NSRect(x: 12, y: 60, width: sidebarGlass.bounds.width - 24, height: sidebarGlass.bounds.height - 154)
+        footerLabel.frame = NSRect(x: 16, y: 14, width: sidebarGlass.bounds.width - 32, height: 20)
+        contentHost.frame = contentGlass.bounds.insetBy(dx: 10, dy: 10)
+
+        updateSidebarButtonFrames()
+    }
+
+    @objc public func addTab(withIdentifier identifier: String, label: String, view: NSView) {
+        guard !identifier.isEmpty else { return }
+
+        tabViews[identifier] = view
+        view.isHidden = true
+        view.frame = contentHost.bounds
+        view.autoresizingMask = [.width, .height]
+        contentHost.addSubview(view)
+
+        let button = SwiftSidebarTabButton()
+        button.tabIdentifier = identifier
+        button.title = label
+        button.bezelStyle = .regularSquare
+        button.isBordered = false
+        button.alignment = .left
+        button.font = NSFont.systemFont(ofSize: 14, weight: .medium)
+        button.target = self
+        button.action = #selector(onTabButtonClicked(_:))
+        button.wantsLayer = true
+        button.layer?.cornerRadius = 10
+        button.contentTintColor = .labelColor
+        buttonList.addSubview(button)
+        tabButtons.append(button)
+
+        if selectedIdentifier.isEmpty {
+            setSelectedTabIdentifier(identifier)
+        }
+
+        updateSidebarButtonFrames()
+    }
+
+    @objc private func onTabButtonClicked(_ sender: SwiftSidebarTabButton) {
+        setSelectedTabIdentifier(sender.tabIdentifier)
+    }
+
+    private func setSelectedTabIdentifier(_ identifier: String) {
+        guard !identifier.isEmpty else { return }
+
+        selectedIdentifier = identifier
+        tabViews.forEach { key, view in
+            view.isHidden = key != identifier
+        }
+        updateSidebarButtonStyles()
+    }
+
+    private func updateSidebarButtonFrames() {
+        var y = buttonList.bounds.height - 44
+        let width = buttonList.bounds.width
+        for button in tabButtons {
+            button.frame = NSRect(x: 0, y: y, width: width, height: 36)
+            y -= 44
+        }
+    }
+
+    private func updateSidebarButtonStyles() {
+        for button in tabButtons {
+            let selected = button.tabIdentifier == selectedIdentifier
+            button.layer?.backgroundColor = selected ? NSColor(white: 1.0, alpha: 0.45).cgColor : NSColor.clear.cgColor
+            button.font = NSFont.systemFont(ofSize: 14, weight: selected ? .semibold : .medium)
+        }
+    }
+}
+
+@objcMembers
 final class SwiftRouteDraft: NSObject {
     var routeID = UUID().uuidString
     var patterns = ""
