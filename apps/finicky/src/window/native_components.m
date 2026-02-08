@@ -280,13 +280,13 @@
 }
 
 - (void)setBrowserOptions:(NSArray*)browserOptions {
-    self.browserOptions = [browserOptions isKindOfClass:[NSArray class]] ? browserOptions : @[];
+    _browserOptions = [browserOptions isKindOfClass:[NSArray class]] ? browserOptions : @[];
     [self refreshDefaultBrowserPopup];
     [self rebuildRouteRows];
 }
 
 - (void)setChromiumProfileGroups:(NSArray*)profileGroups {
-    self.chromiumProfileGroups = [profileGroups isKindOfClass:[NSArray class]] ? profileGroups : @[];
+    _chromiumProfileGroups = [profileGroups isKindOfClass:[NSArray class]] ? profileGroups : @[];
     [self rebuildRouteRows];
 }
 

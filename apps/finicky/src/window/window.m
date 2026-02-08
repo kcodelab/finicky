@@ -168,8 +168,15 @@ void SetFileContentWithLength(const char* path, const char* content, size_t leng
     }
 
     NSString* jsonString = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-    extern void HandleWebViewMessage(const char* message);
-    HandleWebViewMessage([jsonString UTF8String]);
+    const char* cMessage = strdup([jsonString UTF8String]);
+    if (!cMessage) {
+        return;
+    }
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        extern void HandleWebViewMessage(const char* message);
+        HandleWebViewMessage(cMessage);
+        free((void*)cMessage);
+    });
 }
 
 - (void)showWindow {
@@ -383,16 +390,30 @@ void SetFileContentWithLength(const char* path, const char* content, size_t leng
 - (void)userContentController:(WKUserContentController *)userContentController
       didReceiveScriptMessage:(WKScriptMessage *)message {
     if ([message.body isKindOfClass:[NSString class]]) {
-        extern void HandleWebViewMessage(const char* message);
         NSString *messageString = (NSString *)message.body;
-        HandleWebViewMessage([messageString UTF8String]);
+        const char* cMessage = strdup([messageString UTF8String]);
+        if (!cMessage) {
+            return;
+        }
+        dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+            extern void HandleWebViewMessage(const char* message);
+            HandleWebViewMessage(cMessage);
+            free((void*)cMessage);
+        });
     } else if ([message.body isKindOfClass:[NSDictionary class]]) {
         NSError *error;
         NSData *jsonData = [NSJSONSerialization dataWithJSONObject:message.body options:0 error:&error];
         if (jsonData && !error) {
             NSString *jsonString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
-            extern void HandleWebViewMessage(const char* message);
-            HandleWebViewMessage([jsonString UTF8String]);
+            const char* cMessage = strdup([jsonString UTF8String]);
+            if (!cMessage) {
+                return;
+            }
+            dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+                extern void HandleWebViewMessage(const char* message);
+                HandleWebViewMessage(cMessage);
+                free((void*)cMessage);
+            });
         }
     }
 }

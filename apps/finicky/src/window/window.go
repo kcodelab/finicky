@@ -1,7 +1,7 @@
 package window
 
 /*
-#cgo CFLAGS: -x objective-c
+#cgo CFLAGS: -x objective-c -fobjc-arc
 #cgo LDFLAGS: -framework Cocoa -framework WebKit
 #include <stdlib.h>
 #include "window.h"
@@ -18,12 +18,14 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 )
 
 var (
 	messageQueue                  []string
 	queueMutex                    sync.Mutex
+	webMessageCallbackDepth       atomic.Int32
 	windowReady                   bool
 	TestUrlHandler                func(string)
 	EnableICloudSyncHandler       func() (interface{}, error)
@@ -64,6 +66,22 @@ func SendMessageToWebView(messageType string, message interface{}) {
 	jsonBytes, err := json.Marshal(jsonMsg)
 	if err != nil {
 		slog.Error("Error marshaling message", "error", err)
+		return
+	}
+
+	// Avoid C -> Go -> C reentry while we're still inside a web/native callback.
+	// Dispatching asynchronously keeps behavior but prevents callback-stack crashes.
+	if webMessageCallbackDepth.Load() > 0 {
+		asyncMessage := string(jsonBytes)
+		go func() {
+			queueMutex.Lock()
+			defer queueMutex.Unlock()
+			if windowReady {
+				sendMessageToWebViewInternal(asyncMessage)
+			} else {
+				messageQueue = append(messageQueue, asyncMessage)
+			}
+		}()
 		return
 	}
 
@@ -147,6 +165,9 @@ func SendBuildInfo() {
 
 //export HandleWebViewMessage
 func HandleWebViewMessage(messagePtr *C.char) {
+	webMessageCallbackDepth.Add(1)
+	defer webMessageCallbackDepth.Add(-1)
+
 	messageStr := C.GoString(messagePtr)
 
 	var msg map[string]interface{}
