@@ -4,6 +4,7 @@ import Foundation
 @objcMembers
 final class SwiftSidebarTabButton: NSButton {
     var tabIdentifier = ""
+    var rawTitle = ""
 }
 
 @objc(FinickySwiftTabContainerView)
@@ -84,14 +85,15 @@ public final class FinickySwiftTabContainerView: NSView {
 
         let inset: CGFloat = 14
         let sidebarWidth: CGFloat = 290
+        let titlebarSafeInset: CGFloat = 54
 
         rootBackground.frame = bounds
-        sidebarGlass.frame = NSRect(x: inset, y: inset, width: sidebarWidth, height: bounds.height - inset * 2)
+        sidebarGlass.frame = NSRect(x: inset, y: inset, width: sidebarWidth, height: bounds.height - inset * 2 - titlebarSafeInset)
         contentGlass.frame = NSRect(
             x: sidebarGlass.frame.maxX + inset,
             y: inset,
             width: bounds.width - sidebarWidth - inset * 3,
-            height: bounds.height - inset * 2
+            height: bounds.height - inset * 2 - titlebarSafeInset
         )
 
         sidebarContent.frame = sidebarGlass.bounds
@@ -115,6 +117,7 @@ public final class FinickySwiftTabContainerView: NSView {
 
         let button = SwiftSidebarTabButton()
         button.tabIdentifier = identifier
+        button.rawTitle = label
         button.title = label
         button.bezelStyle = .regularSquare
         button.isBordered = false
@@ -153,7 +156,7 @@ public final class FinickySwiftTabContainerView: NSView {
         var y = buttonList.bounds.height - 42
         let width = buttonList.bounds.width
         for button in tabButtons {
-            button.frame = NSRect(x: 0, y: y, width: width, height: 38)
+            button.frame = NSRect(x: 4, y: y, width: width - 8, height: 38)
             y -= 46
         }
     }
@@ -166,6 +169,15 @@ public final class FinickySwiftTabContainerView: NSView {
             button.layer?.borderColor = NSColor(white: 1.0, alpha: 0.35).cgColor
             button.font = NSFont.systemFont(ofSize: 14, weight: selected ? .semibold : .medium)
             button.contentTintColor = selected ? .labelColor : .secondaryLabelColor
+            let paragraph = NSMutableParagraphStyle()
+            paragraph.alignment = .left
+            paragraph.firstLineHeadIndent = 16
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: NSFont.systemFont(ofSize: 14, weight: selected ? .semibold : .medium),
+                .foregroundColor: selected ? NSColor.labelColor : NSColor.secondaryLabelColor,
+                .paragraphStyle: paragraph,
+            ]
+            button.attributedTitle = NSAttributedString(string: button.rawTitle, attributes: attrs)
         }
     }
 }
@@ -386,6 +398,8 @@ final class SwiftRouteEditorRow: NSView, NSTextViewDelegate {
     private let patternsView = NSTextView(frame: .zero)
     private let browserPopup = NSPopUpButton(frame: .zero, pullsDown: false)
     private let profilePopup = NSPopUpButton(frame: .zero, pullsDown: false)
+    private let container = NSStackView(frame: .zero)
+    private let patternsScroll = NSScrollView(frame: .zero)
 
     init(frame frameRect: NSRect, draft: SwiftRouteDraft, browserOptions: [[String: Any]], profileGroups: [[String: Any]]) {
         self.draft = draft
@@ -407,7 +421,7 @@ final class SwiftRouteEditorRow: NSView, NSTextViewDelegate {
         layer?.borderColor = NSColor(white: 1.0, alpha: 0.18).cgColor
         layer?.backgroundColor = NSColor(white: 1.0, alpha: 0.20).cgColor
 
-        let container = NSStackView(frame: bounds.insetBy(dx: 12, dy: 10))
+        container.frame = bounds.insetBy(dx: 12, dy: 10)
         container.autoresizingMask = [.width, .height]
         container.orientation = .vertical
         container.alignment = .leading
@@ -426,7 +440,7 @@ final class SwiftRouteEditorRow: NSView, NSTextViewDelegate {
         header.addArrangedSubview(removeButton)
 
         let patternsLabel = NSTextField(labelWithString: "Patterns")
-        let patternsScroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 760, height: 84))
+        patternsScroll.frame = NSRect(x: 0, y: 0, width: 760, height: 84)
         patternsScroll.borderType = .bezelBorder
         patternsScroll.hasVerticalScroller = true
         patternsView.delegate = self
@@ -457,6 +471,16 @@ final class SwiftRouteEditorRow: NSView, NSTextViewDelegate {
         container.addArrangedSubview(browserRow)
 
         addSubview(container)
+    }
+
+    override func layout() {
+        super.layout()
+        container.frame = bounds.insetBy(dx: 12, dy: 10)
+        let availableWidth = max(420, container.bounds.width - 8)
+        patternsScroll.frame.size.width = availableWidth
+        patternsView.frame.size.width = availableWidth
+        browserPopup.frame.size.width = min(250, max(180, availableWidth * 0.35))
+        profilePopup.frame.size.width = min(340, max(200, availableWidth * 0.5))
     }
 
     private func refreshFromModel() {
@@ -587,7 +611,9 @@ public final class FinickySwiftConfigFormView: NSView {
         let content = NSView(frame: NSRect(x: 0, y: 0, width: bounds.width, height: 1960))
         content.autoresizingMask = [.width]
 
-        let stack = NSStackView(frame: NSRect(x: 16, y: 16, width: max(600, bounds.width - 32), height: 1928))
+        let stackWidth = min(max(680, bounds.width - 40), 1080)
+        let stackX = max(16, (bounds.width - stackWidth) / 2)
+        let stack = NSStackView(frame: NSRect(x: stackX, y: 16, width: stackWidth, height: 1928))
         stack.autoresizingMask = [.width]
         stack.orientation = .vertical
         stack.alignment = .leading
@@ -619,6 +645,7 @@ public final class FinickySwiftConfigFormView: NSView {
         defaultRow.spacing = 10
         defaultBrowserPopup.target = self
         defaultBrowserPopup.action = #selector(onDefaultBrowserChanged(_:))
+        defaultBrowserPopup.frame.size.width = 320
         defaultRow.addArrangedSubview(NSTextField(labelWithString: "Default Browser:"))
         defaultRow.addArrangedSubview(defaultBrowserPopup)
 
@@ -659,7 +686,7 @@ public final class FinickySwiftConfigFormView: NSView {
         routesStack.alignment = .leading
         routesStack.spacing = 12
 
-        let routesCard = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: stack.frame.width, height: 980))
+        let routesCard = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: stack.frame.width, height: 860))
         routesCard.material = .menu
         routesCard.state = .active
         routesCard.blendingMode = .withinWindow
@@ -696,7 +723,7 @@ public final class FinickySwiftConfigFormView: NSView {
         let previewLabel = NSTextField(labelWithString: "Preview")
         previewLabel.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
 
-        let previewScroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 860, height: 420))
+        let previewScroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: stack.frame.width - 56, height: 420))
         previewScroll.borderType = .bezelBorder
         previewScroll.hasVerticalScroller = true
         previewScroll.hasHorizontalScroller = true
@@ -705,7 +732,7 @@ public final class FinickySwiftConfigFormView: NSView {
         previewTextView.isAutomaticQuoteSubstitutionEnabled = false
         previewScroll.documentView = previewTextView
 
-        let previewCard = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: stack.frame.width, height: 492))
+        let previewCard = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: stack.frame.width, height: 504))
         previewCard.material = .headerView
         previewCard.state = .active
         previewCard.blendingMode = .withinWindow
@@ -753,8 +780,9 @@ public final class FinickySwiftConfigFormView: NSView {
         }
 
         for draft in routeDrafts {
+            let rowWidth = min(max(620, bounds.width - 110), 980)
             let row = SwiftRouteEditorRow(
-                frame: NSRect(x: 0, y: 0, width: max(760, bounds.width - 70), height: 220),
+                frame: NSRect(x: 0, y: 0, width: rowWidth, height: 220),
                 draft: draft,
                 browserOptions: browserOptions,
                 profileGroups: profileGroups
