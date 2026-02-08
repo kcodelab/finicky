@@ -580,6 +580,13 @@ public final class FinickySwiftConfigFormView: NSView {
     private let builderErrorLabel = NSTextField(labelWithString: "")
     private let builderStatusLabel = NSTextField(labelWithString: "")
     private let previewTextView = NSTextView(frame: .zero)
+    private let outerScroll = NSScrollView(frame: .zero)
+    private let contentView = NSView(frame: .zero)
+    private let mainStack = NSStackView(frame: .zero)
+    private let routesCard = NSVisualEffectView(frame: .zero)
+    private let routesCardStack = NSStackView(frame: .zero)
+    private let previewCard = NSVisualEffectView(frame: .zero)
+    private let previewScroll = NSScrollView(frame: .zero)
 
     private let routesStack = NSStackView(frame: .zero)
 
@@ -603,21 +610,21 @@ public final class FinickySwiftConfigFormView: NSView {
     }
 
     private func buildUI() {
-        let scroll = NSScrollView(frame: bounds)
-        scroll.autoresizingMask = [.width, .height]
-        scroll.hasVerticalScroller = true
-        scroll.drawsBackground = false
+        outerScroll.frame = bounds
+        outerScroll.autoresizingMask = [.width, .height]
+        outerScroll.hasVerticalScroller = true
+        outerScroll.drawsBackground = false
 
-        let content = NSView(frame: NSRect(x: 0, y: 0, width: bounds.width, height: 1960))
-        content.autoresizingMask = [.width]
+        contentView.frame = NSRect(x: 0, y: 0, width: bounds.width, height: 1800)
+        contentView.autoresizingMask = [.width]
 
         let stackWidth = min(max(680, bounds.width - 40), 1080)
         let stackX = max(16, (bounds.width - stackWidth) / 2)
-        let stack = NSStackView(frame: NSRect(x: stackX, y: 16, width: stackWidth, height: 1928))
-        stack.autoresizingMask = [.width]
-        stack.orientation = .vertical
-        stack.alignment = .leading
-        stack.spacing = 16
+        mainStack.frame = NSRect(x: stackX, y: 16, width: stackWidth, height: 1768)
+        mainStack.autoresizingMask = [.width]
+        mainStack.orientation = .vertical
+        mainStack.alignment = .leading
+        mainStack.spacing = 16
 
         let title = NSTextField(labelWithString: "Config")
         title.font = NSFont.systemFont(ofSize: 36, weight: .bold)
@@ -625,7 +632,7 @@ public final class FinickySwiftConfigFormView: NSView {
         let subtitle = NSTextField(labelWithString: "Routes, profiles, preview and activation")
         subtitle.textColor = .secondaryLabelColor
 
-        let builderCard = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: stack.frame.width, height: 170))
+        let builderCard = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: mainStack.frame.width, height: 170))
         builderCard.material = .menu
         builderCard.state = .active
         builderCard.blendingMode = .withinWindow
@@ -686,7 +693,7 @@ public final class FinickySwiftConfigFormView: NSView {
         routesStack.alignment = .leading
         routesStack.spacing = 12
 
-        let routesCard = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: stack.frame.width, height: 860))
+        routesCard.frame = NSRect(x: 0, y: 0, width: mainStack.frame.width, height: 620)
         routesCard.material = .menu
         routesCard.state = .active
         routesCard.blendingMode = .withinWindow
@@ -695,7 +702,7 @@ public final class FinickySwiftConfigFormView: NSView {
         routesCard.layer?.borderWidth = 1
         routesCard.layer?.borderColor = NSColor(white: 1.0, alpha: 0.16).cgColor
 
-        let routesCardStack = NSStackView(frame: NSRect(x: 16, y: 16, width: routesCard.bounds.width - 32, height: routesCard.bounds.height - 32))
+        routesCardStack.frame = NSRect(x: 16, y: 16, width: routesCard.bounds.width - 32, height: routesCard.bounds.height - 32)
         routesCardStack.autoresizingMask = [.width, .height]
         routesCardStack.orientation = .vertical
         routesCardStack.alignment = .leading
@@ -723,7 +730,7 @@ public final class FinickySwiftConfigFormView: NSView {
         let previewLabel = NSTextField(labelWithString: "Preview")
         previewLabel.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
 
-        let previewScroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: stack.frame.width - 56, height: 420))
+        previewScroll.frame = NSRect(x: 0, y: 0, width: mainStack.frame.width - 56, height: 420)
         previewScroll.borderType = .bezelBorder
         previewScroll.hasVerticalScroller = true
         previewScroll.hasHorizontalScroller = true
@@ -732,7 +739,7 @@ public final class FinickySwiftConfigFormView: NSView {
         previewTextView.isAutomaticQuoteSubstitutionEnabled = false
         previewScroll.documentView = previewTextView
 
-        let previewCard = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: stack.frame.width, height: 504))
+        previewCard.frame = NSRect(x: 0, y: 0, width: mainStack.frame.width, height: 504)
         previewCard.material = .headerView
         previewCard.state = .active
         previewCard.blendingMode = .withinWindow
@@ -750,21 +757,27 @@ public final class FinickySwiftConfigFormView: NSView {
         previewCardStack.addArrangedSubview(previewScroll)
         previewCard.addSubview(previewCardStack)
 
-        stack.addArrangedSubview(title)
-        stack.addArrangedSubview(subtitle)
-        stack.addArrangedSubview(builderCard)
-        stack.addArrangedSubview(routesCard)
-        stack.addArrangedSubview(actionRow)
-        stack.addArrangedSubview(builderErrorLabel)
-        stack.addArrangedSubview(builderStatusLabel)
-        stack.addArrangedSubview(previewCard)
+        [builderCard, routesCard, previewCard].forEach { card in
+            card.translatesAutoresizingMaskIntoConstraints = false
+            card.widthAnchor.constraint(equalTo: mainStack.widthAnchor).isActive = true
+        }
 
-        content.addSubview(stack)
-        scroll.documentView = content
-        addSubview(scroll)
+        mainStack.addArrangedSubview(title)
+        mainStack.addArrangedSubview(subtitle)
+        mainStack.addArrangedSubview(builderCard)
+        mainStack.addArrangedSubview(routesCard)
+        mainStack.addArrangedSubview(actionRow)
+        mainStack.addArrangedSubview(builderErrorLabel)
+        mainStack.addArrangedSubview(builderStatusLabel)
+        mainStack.addArrangedSubview(previewCard)
+
+        contentView.addSubview(mainStack)
+        outerScroll.documentView = contentView
+        addSubview(outerScroll)
 
         setPreviewLoading(false)
         setSaveLoading(false)
+        updateRoutesCardHeight()
     }
 
     private func ensureAtLeastOneRoute() {
@@ -799,6 +812,18 @@ public final class FinickySwiftConfigFormView: NSView {
             }
             routesStack.addArrangedSubview(row)
         }
+        updateRoutesCardHeight()
+    }
+
+    private func updateRoutesCardHeight() {
+        let rowCount = max(routeDrafts.count, 1)
+        let baseHeight: CGFloat = 84
+        let rowHeight: CGFloat = 236
+        let desired = baseHeight + CGFloat(rowCount) * rowHeight
+        let height = min(max(360, desired), 760)
+        routesCard.frame.size.height = height
+        routesCardStack.frame = NSRect(x: 16, y: 16, width: routesCard.bounds.width - 32, height: routesCard.bounds.height - 32)
+        contentView.frame.size.height = max(1600, height + 980)
     }
 
     private func browserSupportsProfiles(_ browserName: String) -> Bool {
@@ -870,15 +895,22 @@ public final class FinickySwiftConfigFormView: NSView {
 
     @objc public func setBuilderError(_ errorText: String) {
         builderErrorLabel.stringValue = errorText
+        builderStatusLabel.stringValue = ""
     }
 
     @objc public func setBuilderStatus(_ statusText: String) {
         builderStatusLabel.stringValue = statusText
+        if !statusText.isEmpty {
+            builderErrorLabel.stringValue = ""
+        }
     }
 
     @objc public func setPreviewLoading(_ loading: Bool) {
         formatButton.isEnabled = !loading
         formatButton.title = loading ? "Formatting..." : "Format"
+        if loading {
+            setBuilderStatus("Generating preview...")
+        }
     }
 
     @objc public func setSaveLoading(_ loading: Bool) {
@@ -934,6 +966,11 @@ public final class FinickySwiftConfigFormView: NSView {
 
     @objc public func setPreviewContent(_ content: String) {
         previewTextView.string = content
+        previewTextView.scrollRangeToVisible(NSRange(location: 0, length: 0))
+        setBuilderStatus("Preview updated")
+        DispatchQueue.main.async {
+            self.contentView.scrollToVisible(self.previewCard.frame.insetBy(dx: 0, dy: -12))
+        }
     }
 
     @objc public func buildRequestPayload(withError errorMessage: AutoreleasingUnsafeMutablePointer<NSString?>?) -> NSDictionary? {
