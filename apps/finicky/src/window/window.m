@@ -48,6 +48,7 @@ void SetFileContentWithLength(const char* path, const char* content, size_t leng
     BOOL cloudSyncEnabled;
     BOOL saveInFlight;
     BOOL previewInFlight;
+    BOOL didRequestInitialData;
 }
 
 - (id)init {
@@ -56,6 +57,7 @@ void SetFileContentWithLength(const char* path, const char* content, size_t leng
         cloudSyncEnabled = NO;
         saveInFlight = NO;
         previewInFlight = NO;
+        didRequestInitialData = NO;
 
         if ([NSThread isMainThread]) {
             [self setupWindow];
@@ -124,8 +126,6 @@ void SetFileContentWithLength(const char* path, const char* content, size_t leng
 
     window.contentView = rootView;
 
-    [self requestNativeInitialData];
-
     extern void WindowIsReady(void);
     WindowIsReady();
 }
@@ -176,12 +176,24 @@ void SetFileContentWithLength(const char* path, const char* content, size_t leng
     if ([NSThread isMainThread]) {
         [window makeKeyAndOrderFront:nil];
         [NSApp activateIgnoringOtherApps:true];
+        [self requestInitialDataIfNeededAsync];
     } else {
         dispatch_async(dispatch_get_main_queue(), ^{
             [window makeKeyAndOrderFront:nil];
             [NSApp activateIgnoringOtherApps:true];
+            [self requestInitialDataIfNeededAsync];
         });
     }
+}
+
+- (void)requestInitialDataIfNeededAsync {
+    if (didRequestInitialData) {
+        return;
+    }
+    didRequestInitialData = YES;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self requestNativeInitialData];
+    });
 }
 
 - (void)closeWindow {
@@ -195,22 +207,24 @@ void SetFileContentWithLength(const char* path, const char* content, size_t leng
 }
 
 - (void)sendMessageToWebView:(NSString *)message {
+    if ([NSThread isMainThread]) {
+        [self deliverMessageOnMainThread:message];
+        return;
+    }
+    NSString* copied = [message copy];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self deliverMessageOnMainThread:copied];
+    });
+}
+
+- (void)deliverMessageOnMainThread:(NSString*)message {
     [self applyIncomingBackendMessage:message];
 
     NSString *escapedMessage = [[message stringByReplacingOccurrencesOfString:@"\\" withString:@"\\\\"]
                                         stringByReplacingOccurrencesOfString:@"\"" withString:@"\\\""];
     NSString *js = [NSString stringWithFormat:@"finicky.receiveMessage(\"%@\")", escapedMessage];
-
-    if ([NSThread isMainThread]) {
-        if (webView && !webView.loading) {
-            [webView evaluateJavaScript:js completionHandler:nil];
-        }
-    } else {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            if (webView && !webView.loading) {
-                [webView evaluateJavaScript:js completionHandler:nil];
-            }
-        });
+    if (webView && !webView.loading) {
+        [webView evaluateJavaScript:js completionHandler:nil];
     }
 }
 
