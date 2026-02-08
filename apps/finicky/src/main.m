@@ -154,22 +154,22 @@
     HandleURL((char*)url, (char*)name, (char*)bundleId, (char*)path, !finickyIsInFront);
 }
 
-- (bool)application:(NSApplication *)application willContinueUserActivityWithType:(NSString *)userActivityType {
-    return [userActivityType isEqualToString:NSUserActivityTypeBrowsingWeb];
+- (BOOL)application:(NSApplication *)application willContinueUserActivityWithType:(NSString *)userActivityType {
+    return [userActivityType isEqualToString:NSUserActivityTypeBrowsingWeb] ? YES : NO;
 }
 
-- (bool)application:(NSApplication *)application continueUserActivity:(NSUserActivity *)userActivity restorationHandler:(void (^)(NSArray<id<NSUserActivityRestoring>> * _Nullable))restorationHandler {
+- (BOOL)application:(NSApplication *)application continueUserActivity:(NSUserActivity *)userActivity restorationHandler:(void (^)(NSArray<id<NSUserActivityRestoring>> * _Nullable))restorationHandler {
     if (![userActivity.activityType isEqualToString:NSUserActivityTypeBrowsingWeb]) {
-        return false;
+        return NO;
     }
 
     NSURL *url = userActivity.webpageURL;
     if (!url) {
-        return false;
+        return NO;
     }
 
     HandleURL((char*)[[url absoluteString] UTF8String], NULL, NULL, NULL, false);
-    return true;
+    return YES;
 }
 
 - (void)application:(NSApplication *)application didFailToContinueUserActivityWithType:(NSString *)userActivityType error:(NSError *)error {
