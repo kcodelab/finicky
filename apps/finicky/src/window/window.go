@@ -24,6 +24,7 @@ import (
 
 var (
 	messageQueue                  []string
+	nativeInboundQueue            chan string
 	queueMutex                    sync.Mutex
 	webMessageCallbackDepth       atomic.Int32
 	windowReady                   bool
@@ -96,6 +97,13 @@ func SendMessageToWebView(messageType string, message interface{}) {
 }
 
 func init() {
+	nativeInboundQueue = make(chan string, 256)
+	go func() {
+		for message := range nativeInboundQueue {
+			handleWebViewMessageInternal(message)
+		}
+	}()
+
 	// Load HTML content
 	html, err := assets.GetHTML()
 	if err != nil {
@@ -163,12 +171,9 @@ func SendBuildInfo() {
 	SendMessageToWebView("buildInfo", buildInfo)
 }
 
-//export HandleWebViewMessage
-func HandleWebViewMessage(messagePtr *C.char) {
+func handleWebViewMessageInternal(messageStr string) {
 	webMessageCallbackDepth.Add(1)
 	defer webMessageCallbackDepth.Add(-1)
-
-	messageStr := C.GoString(messagePtr)
 
 	var msg map[string]interface{}
 	if err := json.Unmarshal([]byte(messageStr), &msg); err != nil {
@@ -203,6 +208,19 @@ func HandleWebViewMessage(messagePtr *C.char) {
 		handleSaveGeneratedConfig(msg)
 	default:
 		slog.Debug("Unknown message type", "type", messageType)
+	}
+}
+
+//export HandleWebViewMessage
+func HandleWebViewMessage(messagePtr *C.char) {
+	messageStr := C.GoString(messagePtr)
+	select {
+	case nativeInboundQueue <- messageStr:
+	default:
+		// Do not block native callback thread on bursts.
+		go func(msg string) {
+			nativeInboundQueue <- msg
+		}(messageStr)
 	}
 }
 

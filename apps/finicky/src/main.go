@@ -2,7 +2,9 @@ package main
 
 /*
 #cgo CFLAGS: -x objective-c
-#cgo LDFLAGS: -framework Cocoa -framework CoreServices
+#cgo CFLAGS: -I${SRCDIR}/native/build
+#cgo LDFLAGS: -L${SRCDIR}/native/build -lFinickyNativeUI
+#cgo LDFLAGS: -lc++ -framework Cocoa -framework CoreServices
 #include <stdlib.h>
 #include "main.h"
 */
