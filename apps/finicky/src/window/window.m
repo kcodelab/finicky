@@ -1,5 +1,8 @@
 #import "window.h"
 #import "native_components.h"
+#if __has_include("FinickyNativeUI-Swift.h")
+#import "FinickyNativeUI-Swift.h"
+#endif
 
 static WindowController* windowController = nil;
 static NSString* htmlContent = nil;
@@ -42,8 +45,8 @@ void SetFileContentWithLength(const char* path, const char* content, size_t leng
     WKWebView* webView;
 
     FinickyNativeTabContainerView* tabContainer;
-    FinickyNativeOverviewView* overviewView;
-    FinickyNativeConfigFormView* configView;
+    FinickySwiftOverviewView* overviewView;
+    FinickySwiftConfigFormView* configView;
 
     BOOL cloudSyncEnabled;
     BOOL cloudSyncInFlight;
@@ -95,13 +98,13 @@ void SetFileContentWithLength(const char* path, const char* content, size_t leng
     tabContainer = [[FinickyNativeTabContainerView alloc] initWithFrame:rootView.bounds];
     tabContainer.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
 
-    overviewView = [[FinickyNativeOverviewView alloc] initWithFrame:tabContainer.bounds];
+    overviewView = [[FinickySwiftOverviewView alloc] initWithFrame:tabContainer.bounds];
     __unsafe_unretained typeof(self) weakSelf = self;
     overviewView.onICloudToggleRequested = ^{
         [weakSelf onCloudSyncAction:nil];
     };
 
-    configView = [[FinickyNativeConfigFormView alloc] initWithFrame:tabContainer.bounds];
+    configView = [[FinickySwiftConfigFormView alloc] initWithFrame:tabContainer.bounds];
     configView.onICloudToggleRequested = ^{
         [weakSelf onCloudSyncAction:nil];
     };

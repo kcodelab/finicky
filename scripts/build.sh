@@ -61,7 +61,8 @@ fi
         -emit-objc-header \
         -emit-objc-header-path "${SWIFT_BUILD_DIR}/FinickyNativeUI-Swift.h" \
         -o "${SWIFT_BUILD_DIR}/libFinickyNativeUI.a" \
-        "${SWIFT_SRC_DIR}/SwiftAppShell.swift"
+        "${SWIFT_SRC_DIR}/SwiftAppShell.swift" \
+        "${SWIFT_SRC_DIR}/NativePages.swift"
 )
 
 

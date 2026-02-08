@@ -2,6 +2,7 @@ package window
 
 /*
 #cgo CFLAGS: -x objective-c -fobjc-arc
+#cgo CFLAGS: -I${SRCDIR}/../native/build
 #cgo LDFLAGS: -framework Cocoa -framework WebKit
 #include <stdlib.h>
 #include "window.h"
