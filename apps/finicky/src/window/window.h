@@ -4,7 +4,7 @@
 #import <Cocoa/Cocoa.h>
 #import <WebKit/WebKit.h>
 
-@interface WindowController : NSObject <WKScriptMessageHandler, WKURLSchemeHandler, WKNavigationDelegate>
+@interface WindowController : NSObject <WKScriptMessageHandler, WKURLSchemeHandler, WKNavigationDelegate, NSTextViewDelegate>
 - (void)showWindow;
 - (void)closeWindow;
 - (void)sendMessageToWebView:(NSString *)message;
