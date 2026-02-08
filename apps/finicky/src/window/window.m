@@ -46,6 +46,7 @@ void SetFileContentWithLength(const char* path, const char* content, size_t leng
     FinickyNativeConfigFormView* configView;
 
     BOOL cloudSyncEnabled;
+    BOOL cloudSyncInFlight;
     BOOL saveInFlight;
     BOOL previewInFlight;
     BOOL didRequestInitialData;
@@ -55,6 +56,7 @@ void SetFileContentWithLength(const char* path, const char* content, size_t leng
     self = [super init];
     if (self) {
         cloudSyncEnabled = NO;
+        cloudSyncInFlight = NO;
         saveInFlight = NO;
         previewInFlight = NO;
         didRequestInitialData = NO;
@@ -303,7 +305,12 @@ void SetFileContentWithLength(const char* path, const char* content, size_t leng
 
         BOOL ok = [payload[@"ok"] boolValue];
         if (ok) {
-            [configView setBuilderStatus:[payload[@"message"] isKindOfClass:[NSString class]] ? payload[@"message"] : @"Saved"];
+            NSString* message = [payload[@"message"] isKindOfClass:[NSString class]] ? payload[@"message"] : @"Saved";
+            NSString* backupPath = [payload[@"backupPath"] isKindOfClass:[NSString class]] ? payload[@"backupPath"] : @"";
+            if (backupPath.length > 0) {
+                message = [NSString stringWithFormat:@"%@ | Backup: %@", message, backupPath];
+            }
+            [configView setBuilderStatus:message];
             [configView setBuilderError:@""];
             [self sendNativeMessage:@{ @"type": @"getConfigBuilderData" }];
         } else {
@@ -314,16 +321,27 @@ void SetFileContentWithLength(const char* path, const char* content, size_t leng
     }
 
     if ([type isEqualToString:@"cloudSyncStatus"] && [payload isKindOfClass:[NSDictionary class]]) {
-        [self handleCloudSyncStatus:(NSDictionary*)payload error:@""];
+        NSString* statusError = [payload[@"error"] isKindOfClass:[NSString class]] ? payload[@"error"] : @"";
+        [self handleCloudSyncStatus:(NSDictionary*)payload error:statusError];
         return;
     }
 
     if ([type isEqualToString:@"cloudSyncResult"] && [payload isKindOfClass:[NSDictionary class]]) {
+        cloudSyncInFlight = NO;
+        [overviewView setICloudToggleLoading:NO];
+        [configView setICloudToggleLoading:NO];
+
         BOOL ok = [payload[@"ok"] boolValue];
         if (ok) {
+            NSString* resultMessage = [payload[@"message"] isKindOfClass:[NSString class]] ? payload[@"message"] : @"";
+            NSString* backupPath = [payload[@"backupPath"] isKindOfClass:[NSString class]] ? payload[@"backupPath"] : @"";
+            [overviewView setICloudResultMessage:resultMessage backupPath:backupPath error:@""];
+            [configView setICloudResultMessage:resultMessage backupPath:backupPath error:@""];
             [self sendNativeMessage:@{ @"type": @"getICloudSyncStatus" }];
         } else {
             NSString* errMsg = [payload[@"error"] isKindOfClass:[NSString class]] ? payload[@"error"] : @"unknown";
+            [overviewView setICloudResultMessage:@"" backupPath:@"" error:errMsg];
+            [configView setICloudResultMessage:@"" backupPath:@"" error:errMsg];
             [self handleCloudSyncStatus:@{ @"enabled": @(cloudSyncEnabled) } error:errMsg];
         }
         return;
@@ -380,6 +398,13 @@ void SetFileContentWithLength(const char* path, const char* content, size_t leng
 }
 
 - (void)onCloudSyncAction:(id)sender {
+    if (cloudSyncInFlight) {
+        return;
+    }
+    cloudSyncInFlight = YES;
+    [overviewView setICloudToggleLoading:YES];
+    [configView setICloudToggleLoading:YES];
+
     if (cloudSyncEnabled) {
         [self sendNativeMessage:@{ @"type": @"disableICloudSync" }];
     } else {
