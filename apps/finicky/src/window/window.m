@@ -160,6 +160,10 @@ void SetFileContentWithLength(const char* path, const char* content, size_t leng
     window.contentView = rootView;
 
     [self requestNativeInitialData];
+
+    // Native UI can receive backend messages immediately after window setup.
+    extern void WindowIsReady(void);
+    WindowIsReady();
 }
 
 - (NSView*)buildWebViewContainerWithFrame:(NSRect)frame {
