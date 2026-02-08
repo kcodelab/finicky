@@ -26,11 +26,11 @@ describe("matchWildcard", () => {
   describe("wildcard positions", () => {
     it("matches wildcards at the start", () => {
       const pattern = "*.example.com";
+      expect(matchWildcard(pattern, "https://example.com")).toBe(true);
       expect(matchWildcard(pattern, "https://sub.example.com")).toBe(true);
       expect(matchWildcard(pattern, "https://another.sub.example.com")).toBe(
         true
       );
-      expect(matchWildcard(pattern, "https://example.com")).toBe(false);
     });
 
     it("matches wildcards in the middle", () => {
@@ -112,7 +112,7 @@ describe("matchWildcard", () => {
       const pattern = "*.google.*";
       expect(matchWildcard(pattern, "https://mail.google.com")).toBe(true);
       expect(matchWildcard(pattern, "https://docs.google.co.uk")).toBe(true);
-      expect(matchWildcard(pattern, "https://google.com")).toBe(false);
+      expect(matchWildcard(pattern, "https://google.com")).toBe(true);
     });
 
     it("handles complex subdomain patterns", () => {
@@ -122,6 +122,20 @@ describe("matchWildcard", () => {
         true
       );
       expect(matchWildcard(pattern, "https://github.io/test")).toBe(false);
+    });
+  });
+
+  describe("domain matching behavior", () => {
+    it("matches root and subdomains for wildcard domain", () => {
+      const pattern = "*.feishu.cn";
+      expect(matchWildcard(pattern, "https://feishu.cn")).toBe(true);
+      expect(matchWildcard(pattern, "https://feishu.cn/")).toBe(true);
+      expect(matchWildcard(pattern, "https://www.feishu.cn")).toBe(true);
+      expect(matchWildcard(pattern, "https://www.feishu.cn/")).toBe(true);
+      expect(matchWildcard(pattern, "https://open.feishu.cn")).toBe(true);
+      expect(matchWildcard(pattern, "https://a.b.feishu.cn")).toBe(true);
+      expect(matchWildcard(pattern, "https://a.b.feishu.cn/path?q=1")).toBe(true);
+      expect(matchWildcard(pattern, "https://feishu.com")).toBe(false);
     });
   });
 });

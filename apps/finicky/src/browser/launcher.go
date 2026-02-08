@@ -9,8 +9,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"slices"
+	"sort"
+	"strings"
 
 	"al.essio.dev/pkg/shellescape"
 	"finicky/util"
@@ -38,6 +39,24 @@ type browserInfo struct {
 	ID                string `json:"id"`
 	AppName           string `json:"app_name"`
 	Type              string `json:"type"`
+}
+
+type BrowserProfile struct {
+	Name string `json:"name"`
+	Path string `json:"path"`
+}
+
+type BrowserProfileGroup struct {
+	ID       string           `json:"id"`
+	AppName  string           `json:"appName"`
+	Profiles []BrowserProfile `json:"profiles"`
+}
+
+type BrowserOption struct {
+	ID               string `json:"id"`
+	AppName          string `json:"appName"`
+	Type             string `json:"type"`
+	SupportsProfiles bool   `json:"supportsProfiles"`
 }
 
 func LaunchBrowser(config BrowserConfig, dryRun bool, openInBackgroundByDefault bool) error {
@@ -77,7 +96,7 @@ func LaunchBrowser(config BrowserConfig, dryRun bool, openInBackgroundByDefault 
 
 	// Add --args if we have profile args or custom args
 	if ok || hasCustomArgs {
-		if ! slices.Contains(config.Args, "--args") {
+		if !slices.Contains(config.Args, "--args") {
 			openArgs = append(openArgs, "--args")
 		}
 		// Add profile argument first if present
@@ -148,8 +167,8 @@ func LaunchBrowser(config BrowserConfig, dryRun bool, openInBackgroundByDefault 
 }
 
 func resolveBrowserProfileArgument(identifier string, profile string) (string, bool) {
-	var browsersJson []browserInfo
-	if err := json.Unmarshal(browsersJsonData, &browsersJson); err != nil {
+	browsersJson, err := getBrowserInfo()
+	if err != nil {
 		slog.Info("Error parsing browsers.json", "error", err)
 		return "", false
 	}
@@ -192,28 +211,18 @@ func resolveBrowserProfileArgument(identifier string, profile string) (string, b
 }
 
 func parseProfiles(localStatePath string, profile string) (string, bool) {
-	data, err := os.ReadFile(localStatePath)
+	infoCache, err := getInfoCache(localStatePath)
 	if err != nil {
-		slog.Info("Error reading Local State file", "path", localStatePath, "error", err)
+		slog.Info("Failed reading profile metadata", "path", localStatePath, "error", err)
 		return "", false
 	}
 
-	var localState map[string]interface{}
-	if err := json.Unmarshal(data, &localState); err != nil {
-		slog.Info("Error parsing Local State JSON", "error", err)
-		return "", false
-	}
-
-	profiles, ok := localState["profile"].(map[string]interface{})
-	if !ok {
-		slog.Info("Could not find profile section in Local State")
-		return "", false
-	}
-
-	infoCache, ok := profiles["info_cache"].(map[string]interface{})
-	if !ok {
-		slog.Info("Could not find info_cache in profile section")
-		return "", false
+	// Prefer exact profile folder/path match (e.g. "Profile 1").
+	for profilePath := range infoCache {
+		if profilePath == profile {
+			slog.Info("Found profile by folder", "path", profilePath)
+			return profilePath, true
+		}
 	}
 
 	// Look for the specified profile
@@ -229,21 +238,7 @@ func parseProfiles(localStatePath string, profile string) (string, bool) {
 		}
 
 		if name == profile {
-			slog.Info("Found profile by name", "name", name, "path", profilePath)
-			return profilePath, true
-		}
-	}
-
-	// If we didn't find the profile, try to find it by profile folder name
-	slog.Debug("Could not find profile in browser profiles, trying to find by profile path", "profile", profile)
-	for profilePath, info := range infoCache {
-		if profilePath == profile {
-			// Try to get the profile name of the profile we want the user to use instead
-			if profileInfo, ok := info.(map[string]interface{}); ok {
-				if name, ok := profileInfo["name"].(string); ok {
-					slog.Warn("Found profile using profile path", "path", profilePath, "name", name, "suggestion", "Please use the profile name instead")
-				}
-			}
+			slog.Warn("Found profile by name", "name", name, "path", profilePath, "suggestion", "Prefer using profile folder name")
 			return profilePath, true
 		}
 	}
@@ -265,6 +260,157 @@ func parseProfiles(localStatePath string, profile string) (string, bool) {
 	slog.Warn("Could not find profile in browser profiles.", "Expected profile", profile, "Available profiles", strings.Join(profileNames, ", "))
 
 	return "", false
+}
+
+func ScanChromiumProfiles() ([]BrowserProfileGroup, error) {
+	browsersJson, err := getBrowserInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	homeDir, err := util.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+
+	var groups []BrowserProfileGroup
+
+	for _, browser := range browsersJson {
+		if browser.Type != "Chromium" {
+			continue
+		}
+
+		localStatePath := filepath.Join(homeDir, "Library/Application Support", browser.ConfigDirRelative, "Local State")
+		profiles, err := getProfilesFromLocalState(localStatePath)
+		if err != nil || len(profiles) == 0 {
+			continue
+		}
+
+		groups = append(groups, BrowserProfileGroup{
+			ID:       browser.ID,
+			AppName:  browser.AppName,
+			Profiles: profiles,
+		})
+	}
+
+	sort.Slice(groups, func(i, j int) bool {
+		return groups[i].AppName < groups[j].AppName
+	})
+
+	return groups, nil
+}
+
+func getProfilesFromLocalState(localStatePath string) ([]BrowserProfile, error) {
+	infoCache, err := getInfoCache(localStatePath)
+	if err != nil {
+		return nil, err
+	}
+
+	profiles := make([]BrowserProfile, 0, len(infoCache))
+	for profilePath, info := range infoCache {
+		profileInfo, ok := info.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		name, ok := profileInfo["name"].(string)
+		if !ok || name == "" {
+			continue
+		}
+
+		profiles = append(profiles, BrowserProfile{Name: name, Path: profilePath})
+	}
+
+	sort.Slice(profiles, func(i, j int) bool {
+		return profiles[i].Name < profiles[j].Name
+	})
+
+	return profiles, nil
+}
+
+func getInfoCache(localStatePath string) (map[string]interface{}, error) {
+	data, err := os.ReadFile(localStatePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var localState map[string]interface{}
+	if err := json.Unmarshal(data, &localState); err != nil {
+		return nil, err
+	}
+
+	profiles, ok := localState["profile"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("missing profile section")
+	}
+
+	infoCache, ok := profiles["info_cache"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("missing profile info_cache")
+	}
+
+	return infoCache, nil
+}
+
+func getBrowserInfo() ([]browserInfo, error) {
+	var browsersJson []browserInfo
+	if err := json.Unmarshal(browsersJsonData, &browsersJson); err != nil {
+		return nil, err
+	}
+	return browsersJson, nil
+}
+
+func ListBrowserOptions() ([]BrowserOption, error) {
+	browsersJson, err := getBrowserInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	options := make([]BrowserOption, 0, len(browsersJson)+3)
+	for _, browser := range browsersJson {
+		options = append(options, BrowserOption{
+			ID:               browser.ID,
+			AppName:          browser.AppName,
+			Type:             browser.Type,
+			SupportsProfiles: browser.Type == "Chromium",
+		})
+	}
+
+	// Add common non-Chromium defaults.
+	options = append(options, BrowserOption{
+		ID:               "com.apple.Safari",
+		AppName:          "Safari",
+		Type:             "Default",
+		SupportsProfiles: false,
+	})
+	options = append(options, BrowserOption{
+		ID:               "org.mozilla.firefox",
+		AppName:          "Firefox",
+		Type:             "Default",
+		SupportsProfiles: false,
+	})
+	options = append(options, BrowserOption{
+		ID:               "com.apple.SafariTechnologyPreview",
+		AppName:          "Safari Technology Preview",
+		Type:             "Default",
+		SupportsProfiles: false,
+	})
+
+	sort.Slice(options, func(i, j int) bool {
+		return options[i].AppName < options[j].AppName
+	})
+
+	deduped := make([]BrowserOption, 0, len(options))
+	seen := make(map[string]bool)
+	for _, option := range options {
+		if seen[option.AppName] {
+			continue
+		}
+		seen[option.AppName] = true
+		deduped = append(deduped, option)
+	}
+
+	return deduped, nil
 }
 
 // formatCommand returns a properly shell-escaped string representation of the command

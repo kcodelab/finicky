@@ -1,4 +1,10 @@
 ./scripts/build.sh
 mkdir -p dist
-export $(cat .env | xargs) && gon scripts/gon-config.json
-
+if [ ! -f .env ]; then
+  echo ".env file not found. Create it from .env.example before releasing."
+  exit 1
+fi
+set -a
+. ./.env
+set +a
+gon scripts/gon-config.json

@@ -130,6 +130,66 @@ func main() {
 	window.TestUrlHandler = func(url string) {
 		go TestURLInternal(url)
 	}
+	window.EnableICloudSyncHandler = func() (interface{}, error) {
+		return cfw.EnableICloudSync()
+	}
+	window.DisableICloudSyncHandler = func() (interface{}, error) {
+		return cfw.DisableICloudSync()
+	}
+	window.GetICloudSyncStatusHandler = func() (interface{}, error) {
+		return cfw.GetICloudSyncStatus()
+	}
+	window.GetChromiumProfilesHandler = func() (interface{}, error) {
+		return browser.ScanChromiumProfiles()
+	}
+	window.GetConfigBuilderDataHandler = func() (interface{}, error) {
+		browsers, err := browser.ListBrowserOptions()
+		if err != nil {
+			return nil, err
+		}
+
+		profiles, err := browser.ScanChromiumProfiles()
+		if err != nil {
+			profiles = []browser.BrowserProfileGroup{}
+		}
+
+		configPath, _ := cfw.GetConfigPath(false)
+		draft := map[string]interface{}{
+			"defaultBrowser": "",
+			"routes":         []interface{}{},
+		}
+		if vm != nil && vm.Runtime() != nil {
+			if parsedDraft, draftErr := getConfigBuilderDraft(vm.Runtime()); draftErr == nil {
+				draft = parsedDraft
+			}
+		}
+		draft = mapDraftToBrowserNames(draft, browsers)
+
+		return map[string]interface{}{
+			"browsers":   browsers,
+			"profiles":   profiles,
+			"configPath": configPath,
+			"draft":      draft,
+			"error":      "",
+		}, nil
+	}
+	window.SaveGeneratedConfigHandler = func(msg map[string]interface{}) (interface{}, error) {
+		request, err := parseGeneratedConfigRequest(msg)
+		if err != nil {
+			return nil, err
+		}
+		return cfw.SaveGeneratedConfig(request)
+	}
+	window.PreviewGeneratedConfigHandler = func(msg map[string]interface{}) (interface{}, error) {
+		request, err := parseGeneratedConfigRequest(msg)
+		if err != nil {
+			return nil, err
+		}
+		return &config.PreviewGeneratedConfigResult{
+			Ok:      true,
+			Content: config.BuildGeneratedConfigContent(request),
+		}, nil
+	}
 
 	const oneDay = 24 * time.Hour
 
@@ -522,4 +582,81 @@ func setupVM(cfw *config.ConfigFileWatcher, embeddedFS embed.FS, namespace strin
 	}
 
 	return nil, nil
+}
+
+func getConfigBuilderDraft(runtime *goja.Runtime) (map[string]interface{}, error) {
+	draftVal, err := runtime.RunString("finickyConfigAPI.getConfigBuilderDraft(finalConfig)")
+	if err != nil {
+		return nil, err
+	}
+
+	draftObj := draftVal.Export()
+	draftBytes, err := json.Marshal(draftObj)
+	if err != nil {
+		return nil, err
+	}
+
+	var draft map[string]interface{}
+	if err := json.Unmarshal(draftBytes, &draft); err != nil {
+		return nil, err
+	}
+
+	return draft, nil
+}
+
+func mapDraftToBrowserNames(
+	draft map[string]interface{},
+	browsers []browser.BrowserOption,
+) map[string]interface{} {
+	byID := make(map[string]string, len(browsers))
+	for _, option := range browsers {
+		byID[option.ID] = option.AppName
+	}
+
+	mapName := func(value string) string {
+		if mapped, ok := byID[value]; ok {
+			return mapped
+		}
+		return value
+	}
+
+	if defaultBrowser, ok := draft["defaultBrowser"].(string); ok {
+		draft["defaultBrowser"] = mapName(defaultBrowser)
+	}
+
+	routes, ok := draft["routes"].([]interface{})
+	if !ok {
+		return draft
+	}
+
+	for _, routeVal := range routes {
+		route, ok := routeVal.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if routeBrowser, ok := route["browser"].(string); ok {
+			route["browser"] = mapName(routeBrowser)
+		}
+	}
+
+	return draft
+}
+
+func parseGeneratedConfigRequest(msg map[string]interface{}) (config.GeneratedConfigRequest, error) {
+	requestValue, ok := msg["request"]
+	if !ok {
+		return config.GeneratedConfigRequest{}, fmt.Errorf("missing request payload")
+	}
+
+	requestBytes, err := json.Marshal(requestValue)
+	if err != nil {
+		return config.GeneratedConfigRequest{}, fmt.Errorf("invalid request payload: %w", err)
+	}
+
+	var request config.GeneratedConfigRequest
+	if err := json.Unmarshal(requestBytes, &request); err != nil {
+		return config.GeneratedConfigRequest{}, fmt.Errorf("invalid request schema: %w", err)
+	}
+
+	return request, nil
 }

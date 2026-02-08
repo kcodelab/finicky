@@ -145,6 +145,53 @@ export function openUrl(
   }
 }
 
+export function getConfigBuilderDraft(config: object) {
+  if (!validateConfig(config)) {
+    throw new Error("Invalid config");
+  }
+  const typedConfig = config as Config;
+
+  const draft = {
+    defaultBrowser: "",
+    routes: [] as Array<{
+      patterns: string[];
+      browser: string;
+      profile: string;
+    }>,
+  };
+
+  const defaultBrowser = typedConfig.defaultBrowser;
+  if (typeof defaultBrowser === "string") {
+    draft.defaultBrowser = defaultBrowser.split(":")[0];
+  } else if (defaultBrowser && typeof defaultBrowser === "object" && "name" in defaultBrowser) {
+    draft.defaultBrowser = String((defaultBrowser as any).name || "");
+  }
+
+  if (!typedConfig.handlers) {
+    return draft;
+  }
+
+  for (const handler of typedConfig.handlers) {
+    const patterns = normalizeMatchPatterns(handler.match);
+    if (patterns.length === 0) {
+      continue;
+    }
+
+    const browser = normalizeBrowser(handler.browser);
+    if (!browser.browser) {
+      continue;
+    }
+
+    draft.routes.push({
+      patterns,
+      browser: browser.browser,
+      profile: browser.profile,
+    });
+  }
+
+  return draft;
+}
+
 export function createBrowserConfig(
   browser: string | BrowserConfig | null
 ): Omit<BrowserConfigStrict, "url"> {
@@ -310,4 +357,41 @@ export function isMatch(
   }
 
   return false;
+}
+
+function normalizeMatchPatterns(match: UrlMatcherPattern): string[] {
+  if (typeof match === "string") {
+    return match.trim() ? [match.trim()] : [];
+  }
+
+  if (Array.isArray(match)) {
+    return match
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+function normalizeBrowser(browser: BrowserSpecification): {
+  browser: string;
+  profile: string;
+} {
+  if (typeof browser === "string") {
+    const [name, profile] = browser.split(":");
+    return {
+      browser: name || "",
+      profile: profile || "",
+    };
+  }
+
+  if (browser && typeof browser === "object" && "name" in browser) {
+    return {
+      browser: String((browser as any).name || ""),
+      profile: String((browser as any).profile || ""),
+    };
+  }
+
+  return { browser: "", profile: "" };
 }

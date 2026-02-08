@@ -22,10 +22,17 @@ import (
 )
 
 var (
-	messageQueue []string
-	queueMutex   sync.Mutex
-	windowReady  bool
-	TestUrlHandler func(string)
+	messageQueue                  []string
+	queueMutex                    sync.Mutex
+	windowReady                   bool
+	TestUrlHandler                func(string)
+	EnableICloudSyncHandler       func() (interface{}, error)
+	DisableICloudSyncHandler      func() (interface{}, error)
+	GetICloudSyncStatusHandler    func() (interface{}, error)
+	GetChromiumProfilesHandler    func() (interface{}, error)
+	GetConfigBuilderDataHandler   func() (interface{}, error)
+	PreviewGeneratedConfigHandler func(map[string]interface{}) (interface{}, error)
+	SaveGeneratedConfigHandler    func(map[string]interface{}) (interface{}, error)
 )
 
 //export WindowIsReady
@@ -159,6 +166,20 @@ func HandleWebViewMessage(messagePtr *C.char) {
 	switch messageType {
 	case "testUrl":
 		handleTestUrl(msg)
+	case "enableICloudSync":
+		handleEnableICloudSync()
+	case "disableICloudSync":
+		handleDisableICloudSync()
+	case "getICloudSyncStatus":
+		handleGetICloudSyncStatus()
+	case "getChromiumProfiles":
+		handleGetChromiumProfiles()
+	case "getConfigBuilderData":
+		handleGetConfigBuilderData()
+	case "previewGeneratedConfig":
+		handlePreviewGeneratedConfig(msg)
+	case "saveGeneratedConfig":
+		handleSaveGeneratedConfig(msg)
 	default:
 		slog.Debug("Unknown message type", "type", messageType)
 	}
@@ -181,4 +202,152 @@ func handleTestUrl(msg map[string]interface{}) {
 			"error": "Test handler not initialized",
 		})
 	}
+}
+
+func handleEnableICloudSync() {
+	if EnableICloudSyncHandler == nil {
+		SendMessageToWebView("cloudSyncResult", map[string]interface{}{
+			"ok":    false,
+			"error": "Cloud sync handler not initialized",
+		})
+		return
+	}
+
+	result, err := EnableICloudSyncHandler()
+	if err != nil {
+		SendMessageToWebView("cloudSyncResult", map[string]interface{}{
+			"ok":    false,
+			"error": err.Error(),
+		})
+		return
+	}
+
+	SendMessageToWebView("cloudSyncResult", result)
+}
+
+func handleGetChromiumProfiles() {
+	if GetChromiumProfilesHandler == nil {
+		SendMessageToWebView("chromiumProfiles", map[string]interface{}{
+			"groups": []interface{}{},
+			"error":  "Profile scanner not initialized",
+		})
+		return
+	}
+
+	result, err := GetChromiumProfilesHandler()
+	if err != nil {
+		SendMessageToWebView("chromiumProfiles", map[string]interface{}{
+			"groups": []interface{}{},
+			"error":  err.Error(),
+		})
+		return
+	}
+
+	SendMessageToWebView("chromiumProfiles", map[string]interface{}{
+		"groups": result,
+		"error":  "",
+	})
+}
+
+func handleDisableICloudSync() {
+	if DisableICloudSyncHandler == nil {
+		SendMessageToWebView("cloudSyncResult", map[string]interface{}{
+			"ok":    false,
+			"error": "Cloud sync handler not initialized",
+		})
+		return
+	}
+
+	result, err := DisableICloudSyncHandler()
+	if err != nil {
+		SendMessageToWebView("cloudSyncResult", map[string]interface{}{
+			"ok":    false,
+			"error": err.Error(),
+		})
+		return
+	}
+
+	SendMessageToWebView("cloudSyncResult", result)
+}
+
+func handleGetICloudSyncStatus() {
+	if GetICloudSyncStatusHandler == nil {
+		SendMessageToWebView("cloudSyncStatus", map[string]interface{}{
+			"enabled": false,
+			"error":   "Cloud sync handler not initialized",
+		})
+		return
+	}
+
+	result, err := GetICloudSyncStatusHandler()
+	if err != nil {
+		SendMessageToWebView("cloudSyncStatus", map[string]interface{}{
+			"enabled": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	SendMessageToWebView("cloudSyncStatus", result)
+}
+
+func handleGetConfigBuilderData() {
+	if GetConfigBuilderDataHandler == nil {
+		SendMessageToWebView("configBuilderData", map[string]interface{}{
+			"error": "Config builder handler not initialized",
+		})
+		return
+	}
+
+	result, err := GetConfigBuilderDataHandler()
+	if err != nil {
+		SendMessageToWebView("configBuilderData", map[string]interface{}{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	SendMessageToWebView("configBuilderData", result)
+}
+
+func handleSaveGeneratedConfig(msg map[string]interface{}) {
+	if SaveGeneratedConfigHandler == nil {
+		SendMessageToWebView("saveGeneratedConfigResult", map[string]interface{}{
+			"ok":    false,
+			"error": "Config save handler not initialized",
+		})
+		return
+	}
+
+	result, err := SaveGeneratedConfigHandler(msg)
+	if err != nil {
+		SendMessageToWebView("saveGeneratedConfigResult", map[string]interface{}{
+			"ok":    false,
+			"error": err.Error(),
+		})
+		return
+	}
+
+	SendMessageToWebView("saveGeneratedConfigResult", result)
+}
+
+func handlePreviewGeneratedConfig(msg map[string]interface{}) {
+	if PreviewGeneratedConfigHandler == nil {
+		SendMessageToWebView("previewGeneratedConfigResult", map[string]interface{}{
+			"ok":    false,
+			"error": "Config preview handler not initialized",
+		})
+		return
+	}
+
+	result, err := PreviewGeneratedConfigHandler(msg)
+	if err != nil {
+		SendMessageToWebView("previewGeneratedConfigResult", map[string]interface{}{
+			"ok":    false,
+			"error": err.Error(),
+		})
+		return
+	}
+
+	SendMessageToWebView("previewGeneratedConfigResult", result)
 }

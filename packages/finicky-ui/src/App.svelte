@@ -3,12 +3,24 @@
   import { Router, Route } from "svelte-routing";
   import LogViewer from "./pages/LogViewer.svelte";
   import StartPage from "./pages/StartPage.svelte";
+  import ConfigBuilder from "./pages/ConfigBuilder.svelte";
   import TabBar from "./components/TabBar.svelte";
   import About from "./pages/About.svelte";
   import TestUrl from "./pages/TestUrl.svelte";
   import ToastContainer from "./components/ToastContainer.svelte";
   import ExternalIcon from "./components/icons/External.svelte";
-  import type { LogEntry, UpdateInfo, ConfigInfo } from "./types";
+  import type {
+    LogEntry,
+    UpdateInfo,
+    ConfigInfo,
+    CloudSyncResult,
+    CloudSyncStatus,
+    ChromiumProfileGroup,
+    BrowserOption,
+    SaveGeneratedConfigResult,
+    ConfigBuilderDraft,
+    PreviewGeneratedConfigResult,
+  } from "./types";
   import { testUrlResult } from "./lib/testUrlStore";
 
   let version = "v0.0.0";
@@ -20,6 +32,18 @@
   // Initialize message buffer
   let messageBuffer: LogEntry[] = [];
   let updateInfo: UpdateInfo | null = null;
+  let cloudSyncResult: CloudSyncResult | null = null;
+  let cloudSyncStatus: CloudSyncStatus = { enabled: false };
+  let chromiumProfiles: ChromiumProfileGroup[] = [];
+  let browserOptions: BrowserOption[] = [];
+  let configBuilderConfigPath = "";
+  let configBuilderError = "";
+  let saveGeneratedConfigResult: SaveGeneratedConfigResult | null = null;
+  let previewGeneratedConfigResult: PreviewGeneratedConfigResult | null = null;
+  let configBuilderDraft: ConfigBuilderDraft = {
+    defaultBrowser: "",
+    routes: [],
+  };
 
   // Reactive declaration to count errors in messageBuffer
   $: numErrors = messageBuffer.filter(
@@ -50,6 +74,37 @@
       case "testUrlResult":
         testUrlResult.set(parsedMsg.message);
         break;
+      case "cloudSyncResult":
+        cloudSyncResult = parsedMsg.message;
+        if (parsedMsg.message?.ok) {
+          window.finicky.sendMessage({ type: "getICloudSyncStatus" });
+        }
+        break;
+      case "cloudSyncStatus":
+        cloudSyncStatus = parsedMsg.message || { enabled: false };
+        break;
+      case "chromiumProfiles":
+        chromiumProfiles = parsedMsg.message?.groups || [];
+        break;
+      case "configBuilderData":
+        browserOptions = parsedMsg.message?.browsers || [];
+        chromiumProfiles = parsedMsg.message?.profiles || chromiumProfiles;
+        configBuilderConfigPath = parsedMsg.message?.configPath || "";
+        configBuilderDraft = parsedMsg.message?.draft || {
+          defaultBrowser: "",
+          routes: [],
+        };
+        configBuilderError = parsedMsg.message?.error || "";
+        break;
+      case "saveGeneratedConfigResult":
+        saveGeneratedConfigResult = parsedMsg.message;
+        if (parsedMsg.message?.ok) {
+          window.finicky.sendMessage({ type: "getConfigBuilderData" });
+        }
+        break;
+      case "previewGeneratedConfigResult":
+        previewGeneratedConfigResult = parsedMsg.message;
+        break;
       default:
         const newMessage = parsedMsg.message
           ? JSON.parse(parsedMsg.message)
@@ -73,8 +128,8 @@
       },
       receiveMessage: handleMessage,
     };
-
-    // Listen for path changes
+    window.finicky.sendMessage({ type: "getICloudSyncStatus" });
+    window.finicky.sendMessage({ type: "getConfigBuilderData" });
   });
 </script>
 
@@ -90,6 +145,20 @@
               {updateInfo}
               {config}
               {numErrors}
+              {cloudSyncResult}
+              {cloudSyncStatus}
+            />
+          </Route>
+
+          <Route path="/config">
+            <ConfigBuilder
+              {browserOptions}
+              {chromiumProfiles}
+              {configBuilderConfigPath}
+              {configBuilderError}
+              {saveGeneratedConfigResult}
+              {configBuilderDraft}
+              {previewGeneratedConfigResult}
             />
           </Route>
 
@@ -143,6 +212,8 @@
     display: flex;
     flex: 1 1 auto;
     min-height: 0;
+    background: color-mix(in srgb, var(--bg-primary) 84%, transparent);
+    backdrop-filter: blur(18px);
   }
 
   .container {
@@ -154,6 +225,7 @@
     flex: 1 1 100%;
     overflow-y: auto;
     scrollbar-gutter: stable;
+    background: color-mix(in srgb, var(--bg-secondary) 64%, transparent);
   }
 
   .footer {
@@ -162,9 +234,10 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.5rem;
-    background: var(--background);
+    background: color-mix(in srgb, var(--bg-secondary) 84%, transparent);
     border-top: 1px solid var(--border-color);
     overflow: hidden;
+    backdrop-filter: blur(12px);
   }
 
   .version {
@@ -196,7 +269,7 @@
     text-overflow: ellipsis;
     max-width: 500px;
     flex-shrink: 1;
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--field-bg);
     padding: 2px 6px;
     border-radius: 3px;
   }

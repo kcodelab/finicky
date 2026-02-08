@@ -69,6 +69,8 @@ func (cfw *ConfigFileWatcher) GetConfigPaths() []string {
 		configPaths = append(configPaths,
 			"~/.finicky.js",
 			"~/.finicky.ts",
+			"~/Library/Mobile Documents/com~apple~CloudDocs/.finicky.js",
+			"~/Library/Mobile Documents/com~apple~CloudDocs/.finicky.ts",
 			"~/.config/finicky.js",
 			"~/.config/finicky.ts",
 			"~/.config/finicky/finicky.js",

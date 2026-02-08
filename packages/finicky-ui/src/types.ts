@@ -49,3 +49,71 @@ export interface ConfigInfo {
     checkForUpdates?: boolean;
   };
 }
+
+export interface CloudSyncResult {
+  ok: boolean;
+  provider?: string;
+  configPath?: string;
+  cloudPath?: string;
+  backupPath?: string;
+  message?: string;
+  error?: string;
+}
+
+export interface CloudSyncStatus {
+  enabled: boolean;
+  provider?: string;
+  configPath?: string;
+  cloudPath?: string;
+  error?: string;
+}
+
+export interface ChromiumProfile {
+  name: string;
+  path: string;
+}
+
+export interface ChromiumProfileGroup {
+  id: string;
+  appName: string;
+  profiles: ChromiumProfile[];
+}
+
+export interface BrowserOption {
+  id: string;
+  appName: string;
+  type: string;
+  supportsProfiles: boolean;
+}
+
+export interface ConfigRouteDraft {
+  id: string;
+  patterns: string;
+  browserName: string;
+  profile: string;
+}
+
+export interface SaveGeneratedConfigResult {
+  ok: boolean;
+  configPath?: string;
+  backupPath?: string;
+  message?: string;
+  error?: string;
+}
+
+export interface PreviewGeneratedConfigResult {
+  ok: boolean;
+  content?: string;
+  error?: string;
+}
+
+export interface ConfigBuilderDraftRoute {
+  patterns: string[];
+  browser: string;
+  profile: string;
+}
+
+export interface ConfigBuilderDraft {
+  defaultBrowser: string;
+  routes: ConfigBuilderDraftRoute[];
+}

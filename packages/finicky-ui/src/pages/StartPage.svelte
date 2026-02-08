@@ -1,13 +1,36 @@
 <script lang="ts">
   import { Link } from "svelte-routing";
   import PageContainer from "../components/PageContainer.svelte";
-  import type { UpdateInfo, ConfigInfo } from "../types";
+  import type {
+    UpdateInfo,
+    ConfigInfo,
+    CloudSyncResult,
+    CloudSyncStatus,
+  } from "../types";
   import ExternalIcon from "../components/icons/External.svelte";
 
   export let hasConfig: boolean;
   export let numErrors: number;
   export let config: ConfigInfo;
   export let updateInfo: UpdateInfo | null;
+  export let cloudSyncResult: CloudSyncResult | null = null;
+  export let cloudSyncStatus: CloudSyncStatus = { enabled: false };
+
+  let changingCloudSync = false;
+
+  function enableICloudSync() {
+    changingCloudSync = true;
+    window.finicky.sendMessage({ type: "enableICloudSync" });
+  }
+
+  function disableICloudSync() {
+    changingCloudSync = true;
+    window.finicky.sendMessage({ type: "disableICloudSync" });
+  }
+
+  $: if (cloudSyncResult) {
+    changingCloudSync = false;
+  }
 </script>
 
 <PageContainer
@@ -100,6 +123,38 @@
     </div>
   </div>
 
+  <div class="status-card info">
+    <h3>Cloud Sync (iCloud)</h3>
+    <p>Sync config via iCloud Drive across your Apple devices.</p>
+    <p>
+      {#if cloudSyncStatus.enabled}
+        <button class="action-button secondary" on:click={disableICloudSync} disabled={changingCloudSync}>
+          {changingCloudSync ? "Disabling..." : "Disable iCloud Sync"}
+        </button>
+      {:else}
+        <button class="action-button" on:click={enableICloudSync} disabled={changingCloudSync}>
+          {changingCloudSync ? "Enabling..." : "Enable iCloud Sync"}
+        </button>
+      {/if}
+    </p>
+    {#if cloudSyncStatus.configPath}
+      <p class="path-line">Config Path: {cloudSyncStatus.configPath}</p>
+    {/if}
+    {#if cloudSyncStatus.enabled && cloudSyncStatus.cloudPath}
+      <p class="path-line">iCloud Target: {cloudSyncStatus.cloudPath}</p>
+    {/if}
+    {#if cloudSyncResult}
+      {#if cloudSyncResult.ok}
+        <p>{cloudSyncResult.message}</p>
+        {#if cloudSyncResult.backupPath}
+          <p class="path-line">Backup: {cloudSyncResult.backupPath}</p>
+        {/if}
+      {:else}
+        <p class="error-text">{cloudSyncResult.error || "Failed enabling cloud sync"}</p>
+      {/if}
+    {/if}
+  </div>
+
   {#if numErrors > 0}
     <div class="status-card error">
       <h3>Errors</h3>
@@ -166,6 +221,36 @@
     display: flex;
     align-items: center;
     gap: 8px;
+  }
+
+  .action-button {
+    border: 1px solid var(--accent-color);
+    background: rgba(180, 84, 255, 0.2);
+    color: var(--text-primary);
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+  }
+
+  .action-button:disabled {
+    opacity: 0.7;
+    cursor: default;
+  }
+
+  .action-button.secondary {
+    border-color: var(--border-color);
+    background: rgba(0, 0, 0, 0.2);
+  }
+
+  .path-line {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    word-break: break-all;
+  }
+
+  .error-text {
+    color: var(--log-error);
   }
 
   .status-card h3::before {

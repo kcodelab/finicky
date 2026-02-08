@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Link } from "svelte-routing";
   import PreferencesIcon from "./icons/Preferences.svelte";
+  import InfoIcon from "./icons/Info.svelte";
   import TestIcon from "./icons/Test.svelte";
   import LogsIcon from "./icons/Logs.svelte";
   import AboutIcon from "./icons/About.svelte";
@@ -10,7 +11,12 @@
   const tabs = [
     {
       path: "/",
-      label: "Preferences",
+      label: "Overview",
+      component: InfoIcon,
+    },
+    {
+      path: "/config",
+      label: "Config",
       component: PreferencesIcon,
     },
     {
@@ -67,7 +73,8 @@
 
   .tab-container {
     width: 190px;
-    background: var(--bg-primary);
+    background: color-mix(in srgb, var(--bg-secondary) 86%, transparent);
+    backdrop-filter: blur(14px);
     position: sticky;
     top: 0;
     z-index: 10;
@@ -125,8 +132,8 @@
     }
 
     &.active {
-      --gradient-start: rgba(180, 84, 255, 0.3);
-      --gradient-end: rgba(65, 50, 255, 0.3);
+      --gradient-start: color-mix(in srgb, var(--accent-color) 38%, transparent);
+      --gradient-end: color-mix(in srgb, var(--accent-strong) 36%, transparent);
     }
   }
 

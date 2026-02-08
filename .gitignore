@@ -3,4 +3,6 @@ node_modules
 build
 .env
 dist
-example-config
+example-config/
+HANDOFF_UI_SWIFT.md
+TODO_SWIFT_UI.md
