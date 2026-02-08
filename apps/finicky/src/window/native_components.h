@@ -9,7 +9,9 @@
 
 @interface FinickyNativeICloudCardView : NSView
 @property(nonatomic, copy) void (^onToggleRequested)(void);
+- (void)setToggleLoading:(BOOL)loading;
 - (void)updateWithEnabled:(BOOL)enabled configPath:(NSString*)configPath cloudPath:(NSString*)cloudPath error:(NSString*)error;
+- (void)updateResultMessage:(NSString*)message backupPath:(NSString*)backupPath error:(NSString*)error;
 @end
 
 @interface FinickyNativePreviewPanelView : NSView
@@ -32,6 +34,8 @@
 - (void)setPreviewLoading:(BOOL)loading;
 - (void)setSaveLoading:(BOOL)loading;
 - (void)updateICloudWithEnabled:(BOOL)enabled configPath:(NSString*)configPath cloudPath:(NSString*)cloudPath error:(NSString*)error;
+- (void)setICloudToggleLoading:(BOOL)loading;
+- (void)setICloudResultMessage:(NSString*)message backupPath:(NSString*)backupPath error:(NSString*)error;
 
 - (void)setPreviewContent:(NSString*)content;
 - (NSDictionary*)buildRequestPayloadWithError:(NSString*__autoreleasing*)errorMessage;
@@ -42,6 +46,8 @@
 
 - (void)updateConfigWithMessage:(NSDictionary*)configMessage;
 - (void)updateICloudEnabled:(BOOL)enabled configPath:(NSString*)configPath cloudPath:(NSString*)cloudPath error:(NSString*)error;
+- (void)setICloudToggleLoading:(BOOL)loading;
+- (void)setICloudResultMessage:(NSString*)message backupPath:(NSString*)backupPath error:(NSString*)error;
 - (void)updateUpdateInfo:(NSDictionary*)updateInfo;
 @end
 
