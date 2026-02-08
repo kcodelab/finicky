@@ -31,8 +31,26 @@
 @implementation RoutePopupButton
 @end
 
+@interface SidebarTabButton : NSButton
+@property(nonatomic, copy) NSString* tabIdentifier;
+@end
+
+@implementation SidebarTabButton
+@end
+
 @interface FinickyNativeTabContainerView ()
-@property(nonatomic, strong) NSTabView* tabView;
+@property(nonatomic, strong) NSVisualEffectView* rootBackground;
+@property(nonatomic, strong) NSVisualEffectView* sidebarGlass;
+@property(nonatomic, strong) NSVisualEffectView* contentGlass;
+@property(nonatomic, strong) NSView* sidebarContent;
+@property(nonatomic, strong) NSTextField* appTitleLabel;
+@property(nonatomic, strong) NSTextField* footerLabel;
+@property(nonatomic, strong) NSSearchField* searchField;
+@property(nonatomic, strong) NSView* buttonList;
+@property(nonatomic, strong) NSView* contentHost;
+@property(nonatomic, strong) NSMutableDictionary<NSString*, NSView*>* tabViews;
+@property(nonatomic, strong) NSMutableArray<SidebarTabButton*>* tabButtons;
+@property(nonatomic, copy) NSString* selectedIdentifier;
 @end
 
 @implementation FinickyNativeTabContainerView
@@ -40,18 +58,163 @@
 - (instancetype)initWithFrame:(NSRect)frameRect {
     self = [super initWithFrame:frameRect];
     if (self) {
-        _tabView = [[NSTabView alloc] initWithFrame:self.bounds];
-        _tabView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-        [self addSubview:_tabView];
+        self.wantsLayer = YES;
+        self.layer.cornerRadius = 20.0;
+        self.layer.masksToBounds = YES;
+
+        _tabViews = [[NSMutableDictionary alloc] init];
+        _tabButtons = [[NSMutableArray alloc] init];
+
+        _rootBackground = [[NSVisualEffectView alloc] initWithFrame:self.bounds];
+        _rootBackground.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+        _rootBackground.material = NSVisualEffectMaterialUnderWindowBackground;
+        _rootBackground.state = NSVisualEffectStateActive;
+        _rootBackground.blendingMode = NSVisualEffectBlendingModeBehindWindow;
+        [self addSubview:_rootBackground];
+
+        _sidebarGlass = [[NSVisualEffectView alloc] initWithFrame:NSZeroRect];
+        _sidebarGlass.material = NSVisualEffectMaterialSidebar;
+        _sidebarGlass.state = NSVisualEffectStateActive;
+        _sidebarGlass.blendingMode = NSVisualEffectBlendingModeWithinWindow;
+        _sidebarGlass.wantsLayer = YES;
+        _sidebarGlass.layer.cornerRadius = 16.0;
+        _sidebarGlass.layer.borderWidth = 1.0;
+        _sidebarGlass.layer.borderColor = [[NSColor colorWithWhite:1.0 alpha:0.24] CGColor];
+        [_rootBackground addSubview:_sidebarGlass];
+
+        _contentGlass = [[NSVisualEffectView alloc] initWithFrame:NSZeroRect];
+        _contentGlass.material = NSVisualEffectMaterialContentBackground;
+        _contentGlass.state = NSVisualEffectStateActive;
+        _contentGlass.blendingMode = NSVisualEffectBlendingModeWithinWindow;
+        _contentGlass.wantsLayer = YES;
+        _contentGlass.layer.cornerRadius = 16.0;
+        _contentGlass.layer.borderWidth = 1.0;
+        _contentGlass.layer.borderColor = [[NSColor colorWithWhite:1.0 alpha:0.2] CGColor];
+        [_rootBackground addSubview:_contentGlass];
+
+        _sidebarContent = [[NSView alloc] initWithFrame:NSZeroRect];
+        _sidebarContent.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+        [_sidebarGlass addSubview:_sidebarContent];
+
+        _appTitleLabel = [NSTextField labelWithString:@"Finicky"];
+        _appTitleLabel.font = [NSFont systemFontOfSize:24 weight:NSFontWeightBold];
+        [_sidebarContent addSubview:_appTitleLabel];
+
+        _searchField = [[NSSearchField alloc] initWithFrame:NSZeroRect];
+        _searchField.placeholderString = @"Search";
+        [_sidebarContent addSubview:_searchField];
+
+        _buttonList = [[NSView alloc] initWithFrame:NSZeroRect];
+        _buttonList.autoresizingMask = NSViewWidthSizable;
+        [_sidebarContent addSubview:_buttonList];
+
+        _footerLabel = [NSTextField labelWithString:@"Swift UI Preview"];
+        _footerLabel.font = [NSFont systemFontOfSize:11 weight:NSFontWeightMedium];
+        _footerLabel.textColor = [NSColor tertiaryLabelColor];
+        [_sidebarContent addSubview:_footerLabel];
+
+        _contentHost = [[NSView alloc] initWithFrame:NSZeroRect];
+        _contentHost.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+        [_contentGlass addSubview:_contentHost];
     }
     return self;
 }
 
 - (void)addTabWithIdentifier:(NSString*)identifier label:(NSString*)label view:(NSView*)view {
-    NSTabViewItem* tab = [[NSTabViewItem alloc] initWithIdentifier:identifier];
-    tab.label = label;
-    tab.view = view;
-    [self.tabView addTabViewItem:tab];
+    if (identifier.length == 0 || !view) {
+        return;
+    }
+
+    self.tabViews[identifier] = view;
+    view.hidden = YES;
+    view.frame = self.contentHost.bounds;
+    view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    [self.contentHost addSubview:view];
+
+    SidebarTabButton* button = [[SidebarTabButton alloc] initWithFrame:NSZeroRect];
+    button.tabIdentifier = identifier;
+    button.title = label ?: identifier;
+    button.bezelStyle = NSBezelStyleRegularSquare;
+    button.bordered = NO;
+    button.alignment = NSTextAlignmentLeft;
+    button.font = [NSFont systemFontOfSize:14 weight:NSFontWeightMedium];
+    button.target = self;
+    button.action = @selector(onTabButtonClicked:);
+    button.wantsLayer = YES;
+    button.layer.cornerRadius = 10.0;
+    button.contentTintColor = [NSColor labelColor];
+    [self.buttonList addSubview:button];
+    [self.tabButtons addObject:button];
+
+    if (self.selectedIdentifier.length == 0) {
+        [self setSelectedTabIdentifier:identifier];
+    }
+
+    [self updateSidebarButtonFrames];
+}
+
+- (void)layout {
+    [super layout];
+
+    CGFloat inset = 12.0;
+    CGFloat sidebarWidth = 280.0;
+    NSRect bounds = self.bounds;
+
+    self.rootBackground.frame = bounds;
+    self.sidebarGlass.frame = NSMakeRect(inset, inset, sidebarWidth, bounds.size.height - inset * 2);
+    self.contentGlass.frame = NSMakeRect(CGRectGetMaxX(self.sidebarGlass.frame) + inset,
+                                         inset,
+                                         bounds.size.width - sidebarWidth - inset * 3,
+                                         bounds.size.height - inset * 2);
+
+    self.sidebarContent.frame = self.sidebarGlass.bounds;
+    self.appTitleLabel.frame = NSMakeRect(16, self.sidebarGlass.bounds.size.height - 40, self.sidebarGlass.bounds.size.width - 32, 30);
+    self.searchField.frame = NSMakeRect(16, self.sidebarGlass.bounds.size.height - 80, self.sidebarGlass.bounds.size.width - 32, 34);
+    self.buttonList.frame = NSMakeRect(12, 60, self.sidebarGlass.bounds.size.width - 24, self.sidebarGlass.bounds.size.height - 154);
+    self.footerLabel.frame = NSMakeRect(16, 14, self.sidebarGlass.bounds.size.width - 32, 20);
+    self.contentHost.frame = NSInsetRect(self.contentGlass.bounds, 10, 10);
+
+    [self updateSidebarButtonFrames];
+}
+
+- (void)onTabButtonClicked:(SidebarTabButton*)sender {
+    if (![sender isKindOfClass:[SidebarTabButton class]] || sender.tabIdentifier.length == 0) {
+        return;
+    }
+    [self setSelectedTabIdentifier:sender.tabIdentifier];
+}
+
+- (void)setSelectedTabIdentifier:(NSString*)identifier {
+    if (identifier.length == 0) {
+        return;
+    }
+
+    self.selectedIdentifier = identifier;
+
+    [self.tabViews enumerateKeysAndObjectsUsingBlock:^(NSString* key, NSView* obj, BOOL* stop) {
+        obj.hidden = ![key isEqualToString:identifier];
+    }];
+
+    [self updateSidebarButtonStyles];
+}
+
+- (void)updateSidebarButtonFrames {
+    CGFloat y = self.buttonList.bounds.size.height - 44;
+    CGFloat width = self.buttonList.bounds.size.width;
+    for (SidebarTabButton* button in self.tabButtons) {
+        button.frame = NSMakeRect(0, y, width, 36);
+        y -= 44;
+    }
+}
+
+- (void)updateSidebarButtonStyles {
+    for (SidebarTabButton* button in self.tabButtons) {
+        BOOL selected = [button.tabIdentifier isEqualToString:self.selectedIdentifier];
+        button.layer.backgroundColor = selected
+            ? [[NSColor colorWithWhite:1.0 alpha:0.45] CGColor]
+            : [[NSColor clearColor] CGColor];
+        button.font = [NSFont systemFontOfSize:14 weight:selected ? NSFontWeightSemibold : NSFontWeightMedium];
+    }
 }
 
 @end

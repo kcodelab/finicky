@@ -82,13 +82,17 @@ void SetFileContentWithLength(const char* path, const char* content, size_t leng
                                          styleMask:NSWindowStyleMaskTitled |
                                                    NSWindowStyleMaskClosable |
                                                    NSWindowStyleMaskMiniaturizable |
-                                                   NSWindowStyleMaskResizable
+                                                   NSWindowStyleMaskResizable |
+                                                   NSWindowStyleMaskFullSizeContentView
                                            backing:NSBackingStoreBuffered
                                              defer:NO];
     [window setTitle:@"Finicky"];
+    [window setTitleVisibility:NSWindowTitleHidden];
+    [window setTitlebarAppearsTransparent:YES];
+    [window setMovableByWindowBackground:YES];
     [window center];
     [window setReleasedWhenClosed:NO];
-    [window setBackgroundColor:[NSColor windowBackgroundColor]];
+    [window setBackgroundColor:[NSColor clearColor]];
     [window setMinSize:NSMakeSize(860, 560)];
     [window setMaxSize:NSMakeSize(1400, 1000)];
 
